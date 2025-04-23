@@ -1,6 +1,7 @@
+// src/components/MeetupDetails.tsx
 import React from "react";
 import {Box, Text} from "ink";
-import {Meetup} from "../../repos/thapakazi/events/cli/src/api";
+import {Meetup} from "../api";
 import {format} from "date-fns";
 
 interface Props {
@@ -26,7 +27,7 @@ const MeetupDetails: React.FC<Props> = ({meetup, onBack}) => (
       <Text>{meetup.description}</Text>
     </Box>
     <Box marginTop={1}>
-      <Text dimColor>(press “b” or Esc to go back)</Text>
+      <Text dimColor>(press “o” to open link, “b” or Esc to go back)</Text>
     </Box>
   </Box>
 );
