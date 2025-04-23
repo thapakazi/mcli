@@ -1,12 +1,13 @@
+// src/App.tsx
 import React, {useState, useEffect, useMemo} from "react";
-import {Box, useInput, Text} from "ink";
+import {Box, useInput, Text, useStdout} from "ink";
 import {spawn} from "child_process";
 import {fetchMeetups, fetchMeetupById, Meetup} from "./api";
 import MeetupList from "./components/MeetupList";
 import SearchBar from "./components/SearchBar";
 import MeetupDetails from "./components/MeetupDetails";
 
-// hook to track terminal size
+// hook to track terminal size on resize
 function useStdoutDimensions(): [number, number] {
   const getSize = (): [number, number] => [
     process.stdout.columns || 0,
@@ -21,23 +22,26 @@ function useStdoutDimensions(): [number, number] {
   return size;
 }
 
-// cross-platform URL opener
+// cross-platform browser opener
 function openUrl(url: string) {
   const cmd =
     process.platform === "darwin" ? "open" :
     process.platform === "win32"  ? "start" :
-                                    "xdg-open";
+    "xdg-open";
   spawn(cmd, [url], {stdio: "ignore", detached: true}).unref();
 }
 
 type View = "list" | "details";
 
 const App: React.FC = () => {
-  // 80% of terminal height
+  // — get Ink’s stdout so we can clear the screen —
+  const {stdout} = useStdout();
+
+  // — dynamic pageSize = 80% of terminal height —
   const [, rows] = useStdoutDimensions();
   const pageSize = Math.max(1, Math.floor(rows * 0.95));
 
-  // state
+  // — state —
   const [view, setView]               = useState<View>("list");
   const [meetups, setMeetups]         = useState<Meetup[]>([]);
   const [selected, setSelected]       = useState(0);
@@ -47,12 +51,18 @@ const App: React.FC = () => {
   const [detail, setDetail]           = useState<Meetup | null>(null);
   const [detailsOffset, setDetailsOffset] = useState(0);
 
-  // fetch data
+  // — CLEAR SCREEN ANY TIME view CHANGES —
+  useEffect(() => {
+    // CSI 2J = clear screen, CSI 0;0f = move cursor to top left
+    stdout.write("\x1B[2J\x1B[0;0f");
+  }, [view]);
+
+  // — initial fetch —
   useEffect(() => {
     fetchMeetups().then(setMeetups).catch(console.error);
   }, []);
 
-  // filter + sort ascending
+  // — filter + sort ascending —
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return meetups
@@ -60,19 +70,19 @@ const App: React.FC = () => {
         m.title.toLowerCase().includes(term) ||
         m.groupName.toLowerCase().includes(term) ||
         m.city.toLowerCase().includes(term)
-      )
+             )
       .sort((a, b) =>
         new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
-      );
+           );
   }, [meetups, search]);
 
-  // reset on search or resize
+  // — reset on search or resize —
   useEffect(() => {
     setSelected(0);
     setOffset(0);
   }, [search, pageSize]);
 
-  // skip past events when entering list
+  // — skip past events on list load —
   useEffect(() => {
     if (view !== "list") return;
     const now = Date.now();
@@ -83,7 +93,7 @@ const App: React.FC = () => {
     }
   }, [filtered, view]);
 
-  // slide window in list
+  // — slide window in list —
   useEffect(() => {
     if (selected < offset) {
       setOffset(selected);
@@ -92,12 +102,12 @@ const App: React.FC = () => {
     }
   }, [selected, offset, pageSize]);
 
-  // reset details scroll when opening a meetup
+  // — reset details scroll when opening —
   useEffect(() => {
     if (detail) setDetailsOffset(0);
   }, [detail]);
 
-  // LIST view key handling
+  // — LIST view key handling —
   useInput((input, key) => {
     if (view !== "list") return;
 
@@ -123,7 +133,6 @@ const App: React.FC = () => {
         .catch(console.error);
       return;
     }
-
     if (!isSearching) {
       if (key.upArrow || input === "k") {
         setSelected(i => Math.max(0, i - 1));
@@ -138,12 +147,11 @@ const App: React.FC = () => {
     }
   });
 
-  // DETAILS view key handling (scroll + open + back)
-  // compute total lines in details so we can clamp scroll
+  // — DETAILS view key handling (scroll + open + back) —
   const totalDetailLines = detail
-    ? 5 + 1 + detail.description.split("\n").length + 1 // 5 header lines + blank + desc lines + heading
+    ? 5 + 1 + detail.description.split("\n").length + 1
     : 0;
-  const maxDetailOffset = Math.max(0, totalDetailLines - pageSize);
+  const maxDetailsOffset = Math.max(0, totalDetailLines - pageSize);
 
   useInput((input, key) => {
     if (view !== "details") return;
@@ -155,11 +163,11 @@ const App: React.FC = () => {
     } else if (key.upArrow || input === "k") {
       setDetailsOffset(o => Math.max(0, o - 1));
     } else if (key.downArrow || input === "j") {
-      setDetailsOffset(o => Math.min(maxDetailOffset, o + 1));
+      setDetailsOffset(o => Math.min(maxDetailsOffset, o + 1));
     }
   });
 
-  // slice for list and details
+  // — render —
   const visibleList = filtered.slice(offset, offset + pageSize);
   const selectedInWindow = selected - offset;
 
@@ -168,30 +176,38 @@ const App: React.FC = () => {
       {view === "list" && (
         <>
           <MeetupList
-            filtered={visibleList}
-            totalCount={pageSize}
-            selected={selectedInWindow}
+        filtered={visibleList}
+        totalCount={pageSize}
+        selected={selectedInWindow}
           />
           <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Filter…"
-            focus={isSearching}
-            onSubmit={() => setIsSearching(false)}
+        value={search}
+        onChange={setSearch}
+        placeholder="Filter…"
+        focus={isSearching}
+        onSubmit={() => setIsSearching(false)}
           />
           <Box marginTop={1}>
-            <Text dimColor>(r refresh, / search, j/k or ↑/↓ move)</Text>
+          <Text dimColor>(r refresh, / search, j/k or ↑/↓ move)</Text>
           </Box>
-        </>
+          </>
       )}
 
-      {view === "details" && detail && (
+    {view === "details" && detail && (
+      <>
         <MeetupDetails
-          meetup={detail}
-          offset={detailsOffset}
-          pageSize={pageSize}
+      meetup={detail}
+      offset={detailsOffset}
+      pageSize={pageSize}
         />
-      )}
+        {/* Footer hint */}
+        <Box marginTop={1}>
+        <Text dimColor>
+        (o open link, j/k or ↑/↓ scroll, b or Esc to go back)
+      </Text>
+        </Box>
+        </>
+    )}
     </Box>
   );
 };
