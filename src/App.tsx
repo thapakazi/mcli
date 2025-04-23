@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, {useState, useEffect, useMemo} from "react";
 import {Box, useInput, Text} from "ink";
 import {spawn} from "child_process";
@@ -7,97 +6,84 @@ import MeetupList from "./components/MeetupList";
 import SearchBar from "./components/SearchBar";
 import MeetupDetails from "./components/MeetupDetails";
 
-// —————————————————————————————————————————————————————————————————————————————
-// Custom hook to get terminal [cols, rows] and update on resize
+// hook to track terminal size
 function useStdoutDimensions(): [number, number] {
   const getSize = (): [number, number] => [
     process.stdout.columns || 0,
     process.stdout.rows    || 0
   ];
   const [size, setSize] = useState<[number, number]>(getSize());
-
   useEffect(() => {
     const onResize = () => setSize(getSize());
     process.on("SIGWINCH", onResize);
     return () => void process.off("SIGWINCH", onResize);
   }, []);
-
   return size;
 }
 
-// —————————————————————————————————————————————————————————————————————————————
-// Cross-platform URL opener
+// cross-platform URL opener
 function openUrl(url: string) {
   const cmd =
     process.platform === "darwin" ? "open" :
     process.platform === "win32"  ? "start" :
                                     "xdg-open";
-  spawn(cmd, [url], { stdio: "ignore", detached: true }).unref();
+  spawn(cmd, [url], {stdio: "ignore", detached: true}).unref();
 }
 
 type View = "list" | "details";
 
 const App: React.FC = () => {
-  // 1) Dynamic pageSize = 80% of terminal height
+  // 80% of terminal height
   const [, rows] = useStdoutDimensions();
   const pageSize = Math.max(1, Math.floor(rows * 0.95));
 
-  // 2) State
-  const [view, setView]           = useState<View>("list");
-  const [meetups, setMeetups]     = useState<Meetup[]>([]);
-  const [selected, setSelected]   = useState(0);    // index in `filtered`
-  const [offset, setOffset]       = useState(0);    // window start
-  const [search, setSearch]       = useState("");
-  const [detail, setDetail]       = useState<Meetup | null>(null);
+  // state
+  const [view, setView]               = useState<View>("list");
+  const [meetups, setMeetups]         = useState<Meetup[]>([]);
+  const [selected, setSelected]       = useState(0);
+  const [offset, setOffset]           = useState(0);
+  const [search, setSearch]           = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [detail, setDetail]           = useState<Meetup | null>(null);
+  const [detailsOffset, setDetailsOffset] = useState(0);
 
-  // 3) Fetch once
+  // fetch data
   useEffect(() => {
-    fetchMeetups()
-      .then(setMeetups)
-      .catch(err => {
-        console.error(err);
-        process.exit(1);
-      });
+    fetchMeetups().then(setMeetups).catch(console.error);
   }, []);
 
-  // 4) Filter + sort chronologically
+  // filter + sort ascending
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return meetups
-      .filter(
-        m =>
-          m.title.toLowerCase().includes(term) ||
-          m.groupName.toLowerCase().includes(term) ||
-          m.city.toLowerCase().includes(term)
-          // fix me: do exact match
-          //m.description.toLowerCase().includes(term)
+      .filter(m =>
+        m.title.toLowerCase().includes(term) ||
+        m.groupName.toLowerCase().includes(term) ||
+        m.city.toLowerCase().includes(term)
       )
-      .sort(
-        (a, b) =>
-          new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
+      .sort((a, b) =>
+        new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
       );
   }, [meetups, search]);
 
-  // 5) Reset selection/window on search or resize
+  // reset on search or resize
   useEffect(() => {
     setSelected(0);
     setOffset(0);
   }, [search, pageSize]);
 
-  // 6) **New**: skip all past (dimmed) events
+  // skip past events when entering list
   useEffect(() => {
     if (view !== "list") return;
     const now = Date.now();
-    const firstFuture = filtered.findIndex(
-      m => new Date(m.dateTime).getTime() >= now
-    );
-    if (firstFuture > 0) {
-      setSelected(firstFuture);
-      setOffset(firstFuture);
+    const idx = filtered.findIndex(m => new Date(m.dateTime).getTime() >= now);
+    if (idx > 0) {
+      setSelected(idx);
+      setOffset(idx);
     }
   }, [filtered, view]);
 
-  // 7) Slide the window if you move out of it
+  // slide window in list
   useEffect(() => {
     if (selected < offset) {
       setOffset(selected);
@@ -106,12 +92,42 @@ const App: React.FC = () => {
     }
   }, [selected, offset, pageSize]);
 
-  // 8) Key handling: ↑/↓/Enter in list, o/Esc/b in details
+  // reset details scroll when opening a meetup
+  useEffect(() => {
+    if (detail) setDetailsOffset(0);
+  }, [detail]);
+
+  // LIST view key handling
   useInput((input, key) => {
-    if (view === "list") {
-      if (key.upArrow) {
+    if (view !== "list") return;
+
+    if (key.escape) {
+      setIsSearching(prev => !prev);
+      return;
+    }
+    if (input === "/" && !isSearching) {
+      setIsSearching(true);
+      return;
+    }
+    if (key.return && isSearching) {
+      setIsSearching(false);
+      return;
+    }
+    if (!isSearching && input === "r") {
+      fetchMeetups()
+        .then(data => {
+          setMeetups(data);
+          setSelected(0);
+          setOffset(0);
+        })
+        .catch(console.error);
+      return;
+    }
+
+    if (!isSearching) {
+      if (key.upArrow || input === "k") {
         setSelected(i => Math.max(0, i - 1));
-      } else if (key.downArrow) {
+      } else if (key.downArrow || input === "j") {
         setSelected(i => Math.min(filtered.length - 1, i + 1));
       } else if (key.return && filtered[selected]) {
         fetchMeetupById(filtered[selected].id).then(m => {
@@ -119,17 +135,32 @@ const App: React.FC = () => {
           setView("details");
         });
       }
-    } else {
-      if (input === "o" && detail) {
-        openUrl(detail.url);
-      } else if (key.escape || input === "b") {
-        setView("list");
-      }
     }
   });
 
-  // 9) Render only the current “page” of items
-  const visible = filtered.slice(offset, offset + pageSize);
+  // DETAILS view key handling (scroll + open + back)
+  // compute total lines in details so we can clamp scroll
+  const totalDetailLines = detail
+    ? 5 + 1 + detail.description.split("\n").length + 1 // 5 header lines + blank + desc lines + heading
+    : 0;
+  const maxDetailOffset = Math.max(0, totalDetailLines - pageSize);
+
+  useInput((input, key) => {
+    if (view !== "details") return;
+
+    if (input === "o" && detail) {
+      openUrl(detail.url);
+    } else if (key.escape || input === "b") {
+      setView("list");
+    } else if (key.upArrow || input === "k") {
+      setDetailsOffset(o => Math.max(0, o - 1));
+    } else if (key.downArrow || input === "j") {
+      setDetailsOffset(o => Math.min(maxDetailOffset, o + 1));
+    }
+  });
+
+  // slice for list and details
+  const visibleList = filtered.slice(offset, offset + pageSize);
   const selectedInWindow = selected - offset;
 
   return (
@@ -137,26 +168,29 @@ const App: React.FC = () => {
       {view === "list" && (
         <>
           <MeetupList
-            filtered={visible}
+            filtered={visibleList}
             totalCount={pageSize}
             selected={selectedInWindow}
           />
-          <Box marginTop={1}>
-            <Text dimColor>
-              Showing {offset + 1}–{Math.min(offset + pageSize, filtered.length)} of{" "}
-              {filtered.length}
-            </Text>
-          </Box>
           <SearchBar
             value={search}
             onChange={setSearch}
-            placeholder="Filter by title, desc, group or city…"
+            placeholder="Filter…"
+            focus={isSearching}
+            onSubmit={() => setIsSearching(false)}
           />
+          <Box marginTop={1}>
+            <Text dimColor>(r refresh, / search, j/k or ↑/↓ move)</Text>
+          </Box>
         </>
       )}
 
       {view === "details" && detail && (
-        <MeetupDetails meetup={detail} onBack={() => setView("list")} />
+        <MeetupDetails
+          meetup={detail}
+          offset={detailsOffset}
+          pageSize={pageSize}
+        />
       )}
     </Box>
   );
