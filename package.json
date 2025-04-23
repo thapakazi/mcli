@@ -1,0 +1,22 @@
+{
+  "name": "cli",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "bin": {
+    "meetup-cli": "src/index.tsx"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "ink": "^5.2.0",
+    "ink-text-input": "^6.0.0",
+    "react": "18",
+    "react-dom": "18"
+  }
+}
