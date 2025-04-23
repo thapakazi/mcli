@@ -40,7 +40,7 @@ type View = "list" | "details";
 const App: React.FC = () => {
   // 1) Dynamic pageSize = 80% of terminal height
   const [, rows] = useStdoutDimensions();
-  const pageSize = Math.max(1, Math.floor(rows * 0.8));
+  const pageSize = Math.max(1, Math.floor(rows * 0.95));
 
   // 2) State
   const [view, setView]           = useState<View>("list");
@@ -69,6 +69,8 @@ const App: React.FC = () => {
           m.title.toLowerCase().includes(term) ||
           m.groupName.toLowerCase().includes(term) ||
           m.city.toLowerCase().includes(term)
+          // fix me: do exact match
+          //m.description.toLowerCase().includes(term)
       )
       .sort(
         (a, b) =>
@@ -148,7 +150,7 @@ const App: React.FC = () => {
           <SearchBar
             value={search}
             onChange={setSearch}
-            placeholder="Filter by title, group or city…"
+            placeholder="Filter by title, desc, group or city…"
           />
         </>
       )}

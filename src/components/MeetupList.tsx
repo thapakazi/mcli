@@ -1,8 +1,8 @@
 // src/components/MeetupList.tsx
 import React from "react";
-import {Box, Text} from "ink";
-import {Meetup} from "../api";
-import {format} from "date-fns";
+import { Box, Text } from "ink";
+import { Meetup } from "../api";
+import { format } from "date-fns";
 
 interface Props {
   filtered: Meetup[];
@@ -17,24 +17,32 @@ const MeetupList: React.FC<Props> = ({ filtered, totalCount, selected }) => {
     <Box flexDirection="column" height={totalCount}>
       {filtered.map((m, i) => {
         const eventTime = new Date(m.dateTime).getTime();
-        const isPast = eventTime < now;
+        const isPast    = eventTime < now;
+        const isOnline  = m.venueName === "Online event";
+
+        // decide color: blue for online upcoming, bright green for physical upcoming
+        const color = !isPast
+          ? isOnline
+            ? "blue"
+            : "greenBright"
+          : undefined;
 
         return (
           <Box key={m.id}>
-            {/* arrow stays highlighted if selected */}
+            {/* arrow indicator */}
             <Text color={i === selected ? "cyan" : undefined}>
               {i === selected ? "❯ " : "  "}
             </Text>
 
-            {/* dim the whole row if it's in the past */}
-            <Text dimColor={isPast}>
-              {format(new Date(m.dateTime), "yyyy-MM-dd HH:mm")} – {m.title}
+            {/* date + title with conditional coloring/dimming */}
+            <Text color={color} dimColor={isPast}>
+              {format(new Date(m.dateTime), "yyyy-MM-dd HH:mm")} – {m.title} | {m.rsvpsCount} - {m.venueName}, {m.city}
             </Text>
           </Box>
         );
       })}
 
-      {/* pad with blanks so old rows get wiped */}
+      {/* pad with blanks so Ink erases old rows */}
       {Array.from({ length: totalCount - filtered.length }).map((_, idx) => (
         <Text key={`empty-${idx}`}> </Text>
       ))}
