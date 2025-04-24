@@ -13,24 +13,25 @@ interface LayoutProps {
  */
 const Layout: React.FC<LayoutProps> = ({ header, children, footer }) => (
   <Box
-  flexDirection="column"
-  marginTop={1}
-  marginRight={2} 
-  marginLeft={2} 
-    >
+    flexDirection="column"
+    marginTop={1}
+    marginBottom={1}
+    marginRight={1}
+    marginLeft={1}
+  >
     {header && (
-      <Box marginBottom={1}>
+      <Box>
         {header}
       </Box>
     )}
 
     {/* body grows to take available space if you want */}
-    <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1} padding={1}>
       {children}
     </Box>
 
     {footer && (
-      <Box marginTop={1}>
+      <Box>
         {footer}
       </Box>
     )}

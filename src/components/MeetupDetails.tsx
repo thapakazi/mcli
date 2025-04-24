@@ -21,7 +21,7 @@ const MeetupDetails: React.FC<Props> = ({ meetup, onBack }) => {
     : undefined;
 
   return (
-    <Box flexDirection="column" padding={2}>
+    <Box flexDirection="column" paddingLeft={2} paddingRight={2}>
 
       {/* Head */}
       <Box flexDirection="column">
