@@ -39,7 +39,6 @@ const MeetupDetails: React.FC<Props> = ({ meetup, onBack }) => {
           <Text key={i}>{line}</Text>
         ))}
       </Box>
-	  <Spacer />
 
       {/* Tail */}
       <Box marginTop={1}>
