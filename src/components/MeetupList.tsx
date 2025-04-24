@@ -1,4 +1,4 @@
-// src/components/MeetupList.tsx
+// src/components/MeettsxupList.tsx
 import React from "react";
 import { Box, Text } from "ink";
 import { Meetup } from "../api";
@@ -14,7 +14,7 @@ const MeetupList: React.FC<Props> = ({ filtered, totalCount, selected }) => {
   const now = Date.now();
 
   return (
-    <Box flexDirection="column" height={totalCount}>
+    <Box flexDirection="column" height={totalCount} >
       {filtered.map((m, i) => {
         const eventTime = new Date(m.dateTime).getTime();
         const isPast    = eventTime < now;

@@ -1,6 +1,7 @@
 // src/components/MeetupDetails.tsx
 import React, { useState, useEffect } from "react";
-import { Box, Text } from "ink";
+import { Box, Text, Spacer} from "ink";
+import gradient from 'gradient-string';
 import { Meetup } from "../api";
 import { format } from "date-fns";
 
@@ -15,63 +16,36 @@ const MeetupDetails: React.FC<Props> = ({ meetup, onBack }) => {
   const isPast = eventTime < now;
   const isOnline = meetup.venueName === "Online event";
 
-  // title color: blue for online upcoming, greenBright for physical upcoming
   const titleColor = !isPast
-    ? isOnline
-      ? "blue"
-      : "greenBright"
+    ? isOnline ? "blue" : "greenBright"
     : undefined;
 
-  // glow animation for link
-  const [glowPos, setGlowPos] = useState(0);
-  const link = meetup.url;
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setGlowPos(pos => (pos + 1) % link.length);
-    }, 100);
-    return () => clearInterval(id);
-  }, [link]);
-
-  const renderGlowingLink = () => (
-    <Text>
-      {link.split("").map((char, idx) => (
-        <Text
-          key={idx}
-          color={idx === glowPos ? "white" : "gray"}
-          bold={idx === glowPos}
-        >
-          {char}
-        </Text>
-      ))}
-    </Text>
-  );
-
   return (
-    <Box flexDirection="column">
-      {/* Title */}
-      <Text bold color={titleColor} dimColor={isPast}>
-        {meetup.title} (
-        {format(new Date(meetup.dateTime), "yyyy-MM-dd HH:mm")})
-      </Text>
+    <Box flexDirection="column" padding={2}>
 
-      {/* Group, Venue, RSVPs */}
-      <Text color="cyan">{`Group: ${meetup.groupName}`}</Text>
-      <Text color="magenta">{`Venue: ${meetup.venueName}, ${meetup.city}, ${meetup.state.toUpperCase()}`}</Text>
-      <Text color="yellow">{`RSVPs: ${meetup.rsvpsCount}`}</Text>
-
-      {/* Link with glowing animation */}
-      <Box marginTop={1} flexDirection="column">
-        <Text>Link:</Text>
-        <Box marginLeft={2}>{renderGlowingLink()}</Box>
+      {/* Head */}
+      <Box flexDirection="column">
+        <Text bold color={titleColor} dimColor={isPast}>{meetup.title}</Text>
+        <Text color="magenta">📍 {meetup.venueName}, {meetup.city}, {meetup.state.toUpperCase()}</Text>
+        <Text color="cyan">📆 {format(new Date(meetup.dateTime), "yyyy-MM-dd || HH:mm")}</Text>
+        <Text>🤹 {gradient(['red',' yellow'])(meetup.groupName)}</Text>
+        <Text color="yellow">＃ {meetup.rsvpsCount}</Text>
+        <Text>🔗 {gradient(['cyan',' pink',' magenta',' red',' yellow',' green',' blue'])(meetup.url)}</Text>
       </Box>
 
-      {/* Description with spacing */}
-      <Box marginTop={1} flexDirection="column" marginLeft={2}>
+      {/* Description */}
+      <Box marginTop={1} flexDirection="column">
         {meetup.description.split("\n").map((line, i) => (
           <Text key={i}>{line}</Text>
         ))}
-     </Box>
+      </Box>
+	  <Spacer />
+
+      {/* Tail */}
+      <Box marginTop={1}>
+        <Text dimColor>(press “b” or Esc to go back)</Text>
+      </Box>
+
     </Box>
   );
 };
