@@ -28,3 +28,9 @@ export async function fetchMeetupById(id: string): Promise<Meetup> {
   if (!res.ok) throw new Error(res.statusText);
   return res.json();
 }
+
+export async function fetchMeetupByLocation(location: string): Promise<Meetup> {
+  const res = await fetch(`${BASE}/fetch?location=${location}`);
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}

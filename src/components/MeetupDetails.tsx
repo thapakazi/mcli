@@ -36,7 +36,7 @@ const MeetupDetails: React.FC<Props> = ({ meetup, onBack }) => {
       {/* Description */}
       <Box marginTop={1} flexDirection="column">
         {meetup.description.split("\n").map((line, i) => (
-          <Text key={i}>{line}</Text>
+          <Text key={i} wrap="truncate">{line}</Text>
         ))}
       </Box>
 

@@ -1,37 +1,49 @@
 // src/App.tsx
 import React, {useState, useEffect, useMemo} from "react";
 import {Box, useInput, Text, useStdout} from "ink";
+import TextInput from "ink-text-input";
 import {spawn} from "child_process";
 import {format} from "date-fns";
-import {fetchMeetups, fetchMeetupById, Meetup} from "./api";
+import {
+  fetchMeetups,
+  fetchMeetupById,
+  fetchMeetupByLocation,
+  Meetup
+} from "./api";
 import Layout from "./components/Layout";
-import MeetupList from "./components/MeetupList";
 import SearchBar from "./components/SearchBar";
+import MeetupList from "./components/MeetupList";
 import MeetupDetails from "./components/MeetupDetails";
 
 type View = "list" | "details";
+type SearchMode = "filter" | "fetch";
 
 const App: React.FC = () => {
-  // Core state
-  const [view, setView] = useState<View>("list");
-  const [meetups, setMeetups]             = useState<Meetup[]>([]);
-  const [selected, setSelected]           = useState(0);
-  const [offset, setOffset]               = useState(0);
-  const [search, setSearch]               = useState("");
-  const [isSearching, setIsSearching]     = useState(false);
-  const [detail, setDetail]               = useState<Meetup | null>(null);
+  // ─── Core state ─────────────────────────────────────────────────────────────
+  const [view, setView]                 = useState<View>("list");
+  const [meetups, setMeetups]           = useState<Meetup[]>([]);
+  const [selected, setSelected]         = useState(0);
+  const [offset, setOffset]             = useState(0);
+  const [detail, setDetail]             = useState<Meetup | null>(null);
   const [detailsOffset, setDetailsOffset] = useState(0);
 
-  const { stdout } = useStdout();
-  const rows = stdout.rows - 10 ?? 24;
-  const pageSize = Math.max(1, Math.floor(rows));
+  // filter vs fetch mode
+  const [mode, setMode]                 = useState<SearchMode>("filter");
+  const [isFocused, setIsFocused]       = useState(false);
+  const [search, setSearch]             = useState("");
+  const [formLocation, setFormLocation] = useState("");
 
-  // Fetch once
+  // ─── Paging setup ────────────────────────────────────────────────────────────
+  const {stdout} = useStdout();
+  const rows      = (stdout.rows ?? 24) - 6; // leave room for header/footer
+  const pageSize  = Math.max(1, Math.floor(rows));
+
+  // ─── Initial fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
     fetchMeetups().then(setMeetups).catch(console.error);
   }, []);
 
-  // Filter + sort
+  // ─── Filter + sort ───────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return meetups
@@ -45,13 +57,13 @@ const App: React.FC = () => {
       );
   }, [meetups, search]);
 
-  // Reset on search or resize-derived pageSize
+  // ─── Reset list cursor/window on search/mode/pageSize change ────────────────
   useEffect(() => {
     setSelected(0);
     setOffset(0);
-  }, [search, pageSize]);
+  }, [search, mode, pageSize]);
 
-  // Skip past events on first entering list
+  // ─── Skip past events on first list entry ────────────────────────────────────
   useEffect(() => {
     if (view !== "list") return;
     const now = Date.now();
@@ -64,7 +76,7 @@ const App: React.FC = () => {
     }
   }, [filtered, view]);
 
-  // Slide window for list
+  // ─── Slide window in list ────────────────────────────────────────────────────
   useEffect(() => {
     if (selected < offset) {
       setOffset(selected);
@@ -73,50 +85,84 @@ const App: React.FC = () => {
     }
   }, [selected, offset, pageSize]);
 
-  //  Reset details scroll on open
+  // ─── Reset details scroll when opening a meetup ──────────────────────────────
   useEffect(() => {
     if (detail) setDetailsOffset(0);
   }, [detail]);
 
-  // LIST view input
+  // ─── LIST + FORM input ───────────────────────────────────────────────────────
   useInput((input, key) => {
     if (view !== "list") return;
 
-    if (key.escape) {
-      setIsSearching(prev => !prev);
+    // 1) Toggle focus: Esc blurs/unfocuses
+    if (key.escape && isFocused) {
+      setIsFocused(false);
       return;
     }
-    if (input === "/" && !isSearching) {
-      setIsSearching(true);
+
+    // 2) "/" enters filter mode
+    if (!isFocused && input === "/") {
+      setMode("filter");
+      setIsFocused(true);
+      setSearch("");
       return;
     }
-    if (key.return && isSearching) {
-      setIsSearching(false);
+
+    // 3) "f" enters fetch mode
+    if (!isFocused && input === "f") {
+      setMode("fetch");
+      setIsFocused(true);
+      setFormLocation("");
       return;
     }
-    if (!isSearching && input === "r") {
-      fetchMeetups().then(data => {
-        setMeetups(data);
-        setSelected(0);
-        setOffset(0);
-      }).catch(console.error);
+
+    // 4) if focused, all keys go to TextInput:
+    if (isFocused) return;
+
+    // 5) refresh on "r"
+    if (input === "r") {
+      fetchMeetups()
+        .then(data => {
+          setMeetups(data);
+          setDetail(null);
+          setView("list");
+        })
+        .catch(console.error);
       return;
     }
-    if (!isSearching) {
-      if (key.upArrow || input === "k") {
-        setSelected(i => Math.max(0, i - 1));
-      } else if (key.downArrow || input === "j") {
-        setSelected(i => Math.min(filtered.length - 1, i + 1));
-      } else if (key.return && filtered[selected]) {
-        fetchMeetupById(filtered[selected].id).then(m => {
-          setDetail(m);
-          setView("details");
-        });
-      }
+
+    // 6) navigation & dive-in
+    if (key.upArrow || input === "k") {
+      setSelected(i => Math.max(0, i - 1));
+    } else if (key.downArrow || input === "j") {
+      setSelected(i => Math.min(filtered.length - 1, i + 1));
+    } else if (key.return && filtered[selected]) {
+      fetchMeetupById(filtered[selected].id).then(m => {
+        setDetail(m);
+        setView("details");
+      });
     }
   });
 
-  // 12) DETAILS view input (scroll + open + back)
+  // ─── SUBMIT handler for unified SearchBar ────────────────────────────────────
+  const handleSubmit = async (value: string) => {
+    setIsFocused(false);
+
+    if (mode === "filter") {
+      // just leave `search` as-is
+      return;
+    } else {
+      // fetch by location
+      try {
+        const meetup = await fetchMeetupByLocation(value);
+        setMeetups([meetup]);
+      } catch (err) {
+        console.error("Fetch by location failed:", err);
+      }
+    }
+  };
+
+  // ─── DETAILS view input (scroll, open, back) ────────────────────────────────
   const totalDetailLines = detail
     ? 5 + 1 + detail.description.split("\n").length + 1
     : 0;
@@ -124,7 +170,6 @@ const App: React.FC = () => {
 
   useInput((input, key) => {
     if (view !== "details" || !detail) return;
-
     if (input === "o") {
       const cmd =
         process.platform === "darwin" ? "open" :
@@ -140,8 +185,8 @@ const App: React.FC = () => {
     }
   });
 
-  // 13) Render
-  const visibleList = filtered.slice(offset, offset + pageSize);
+  // ─── Render ─────────────────────────────────────────────────────────────────
+  const visibleList     = filtered.slice(offset, offset + pageSize);
   const selectedInWindow = selected - offset;
 
   const header = (
@@ -150,6 +195,7 @@ const App: React.FC = () => {
     </Text>
   );
 
+  // unified SearchBar in footer
   const footer = (
     <Box
       flexDirection="row"
@@ -158,18 +204,20 @@ const App: React.FC = () => {
       borderStyle="round"
       width="100%"
     >
-      <SearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder="Filter meetups…"
-        focus={isSearching}
-        onSubmit={() => setIsSearching(false)}
-      />
-      <Box>
-        <Text dimColor>
-          {format(new Date(), "yyyy-MM-dd HH:mm:ss")}
-        </Text>
+      <Box flexGrow={1}>
+        <SearchBar
+          value={mode === "filter" ? search : formLocation}
+          onChange={mode === "filter" ? setSearch : setFormLocation}
+          placeholder={
+            mode === "filter" ? "Filter meetups…" : "Fetch location…"
+          }
+          focus={isFocused}
+          onSubmit={handleSubmit}
+        />
       </Box>
+      <Text dimColor>
+        {format(new Date(), "yyyy-MM-dd HH:mm:ss")}
+      </Text>
     </Box>
   );
 
@@ -182,6 +230,7 @@ const App: React.FC = () => {
           selected={selectedInWindow}
         />
       )}
+
       {view === "details" && detail && (
         <MeetupDetails
           meetup={detail}
