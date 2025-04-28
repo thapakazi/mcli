@@ -5,9 +5,13 @@ import TextInput from "ink-text-input";
 import {spawn} from "child_process";
 import {format} from "date-fns";
 import {
+  fetchEvents,
   fetchMeetups,
+  fetchLumas,
   fetchMeetupById,
+  fetchLumaById,
   fetchMeetupByLocation,
+  refreshLumaById,
   Meetup
 } from "./api";
 import Layout from "./components/Layout";
@@ -40,7 +44,7 @@ const App: React.FC = () => {
 
   // ─── Initial fetch ───────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchMeetups().then(setMeetups).catch(console.error);
+    fetchEvents().then(setMeetups).catch(console.error);
   }, []);
 
   // ─── Filter + sort ───────────────────────────────────────────────────────────
@@ -48,9 +52,10 @@ const App: React.FC = () => {
     const term = search.toLowerCase();
     return meetups
       .filter(m =>
-        m.title.toLowerCase().includes(term) ||
-        m.groupName.toLowerCase().includes(term) ||
-        m.city.toLowerCase().includes(term)
+        m.title?.toLowerCase().includes(term) ||
+        m.groupName?.toLowerCase().includes(term) ||
+        m.city?.toLowerCase().includes(term) ||
+        m.venueCity?.toLowerCase().includes(term)
       )
       .sort((a, b) =>
         new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
@@ -121,7 +126,7 @@ const App: React.FC = () => {
 
     // 5) refresh on "r"
     if (input === "r") {
-      fetchMeetups()
+      fetchEvents()
         .then(data => {
           setMeetups(data);
           setDetail(null);
@@ -137,10 +142,18 @@ const App: React.FC = () => {
     } else if (key.downArrow || input === "j") {
       setSelected(i => Math.min(filtered.length - 1, i + 1));
     } else if (key.return && filtered[selected]) {
-      fetchMeetupById(filtered[selected].id).then(m => {
-        setDetail(m);
-        setView("details");
-      });
+      let source =  filtered[selected].source;
+      if ( source == 'luma') {
+        fetchLumaById(filtered[selected].id).then(m => {
+          setDetail(m);
+          setView("details");
+        });
+      } else {
+        fetchMeetupById(filtered[selected].id).then(m => {
+          setDetail(m);
+          setView("details");
+        });
+      }
     }
   });
 
@@ -164,12 +177,26 @@ const App: React.FC = () => {
 
   // ─── DETAILS view input (scroll, open, back) ────────────────────────────────
   const totalDetailLines = detail
-    ? 5 + 1 + detail.description.split("\n").length + 1
+    ? 5 + 1 + detail.description?.split("\n").length + 1
     : 0;
   const maxDetailsOffset = Math.max(0, totalDetailLines - pageSize);
 
   useInput((input, key) => {
     if (view !== "details" || !detail) return;
+
+    // “r” reloads from Luma
+    if (input === "r") {
+      if (detail.source == "luma" && detail.description === null) {
+        refreshLumaById(detail.id)
+          .then(m => {
+            debugger;
+            return setDetail(m)
+          })
+          .catch(err => console.error("Luma refresh failed:", err));
+        return;
+      }
+    }
+
     if (input === "o") {
       const cmd =
         process.platform === "darwin" ? "open" :

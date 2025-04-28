@@ -26,16 +26,16 @@ const MeetupDetails: React.FC<Props> = ({ meetup, onBack }) => {
       {/* Head */}
       <Box flexDirection="column">
         <Text bold color={titleColor} dimColor={isPast}>{meetup.title}</Text>
-        <Text color="magenta">📍 {meetup.venueName}, {meetup.city}, {meetup.state.toUpperCase()}</Text>
+        <Text color="magenta">📍 {meetup.venueName?? meetup.venueAddress}, {meetup.city?? meetup.venueCity}, {meetup.state?.toUpperCase()}</Text>
         <Text color="cyan">📆 {format(new Date(meetup.dateTime), "yyyy-MM-dd || HH:mm")}</Text>
         <Text>🤹 {gradient(['red',' yellow'])(meetup.groupName)}</Text>
-        <Text color="yellow">＃ {meetup.rsvpsCount}</Text>
+        <Text color="yellow">＃ {meetup.rsvpsCount?? meetup.ticketCount}</Text>
         <Text>🔗 {gradient(['cyan',' pink',' magenta',' red',' yellow',' green',' blue'])(meetup.url)}</Text>
       </Box>
 
       {/* Description */}
       <Box marginTop={1} flexDirection="column">
-        {meetup.description.split("\n").map((line, i) => (
+        {meetup.description?.split("\n").map((line, i) => (
           <Text key={i} wrap="truncate">{line}</Text>
         ))}
       </Box>

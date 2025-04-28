@@ -1,8 +1,9 @@
 // src/components/MeettsxupList.tsx
 import React from "react";
 import { Box, Text } from "ink";
+import gradient from 'gradient-string';
 import { Meetup } from "../api";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, differenceInHours } from "date-fns";
 
 interface Props {
   filtered: Meetup[];
@@ -20,13 +21,32 @@ const MeetupList: React.FC<Props> = ({ filtered, totalCount, selected }) => {
         const isPast    = eventTime < now;
         const isOnline  = m.venueName === "Online event";
 
+        let timeToGo: string;
+        const eventDate = new Date(m.dateTime);
+        if (eventDate.getTime() <= now) {
+          timeToGo = "started";
+        } else {
+          const daysDiff = differenceInCalendarDays(eventDate, now);
+
+          if (daysDiff === 0) {
+            // same calendar day
+            timeToGo = `today @${format(eventDate, "HH:mm")}`;
+          } else {
+            // full days + remaining hours
+            const totalHours = differenceInHours(eventDate, now);
+            const hoursOnly = totalHours - daysDiff * 24;
+            timeToGo = `${daysDiff}d`;
+          }
+        }
+
         // decide color: blue for online upcoming, bright green for physical upcoming
         const color = !isPast
           ? isOnline
             ? "blue"
-            : "greenBright"
+            : "green"
           : undefined;
 
+        const source = m.source == "luma" ? gradient(['#6e2fe3','#0cabf7','#e27417','#1f6f05'])('✦︎') : gradient(['#f6405fcf','pink'])('☘︎');
         return (
           <Box key={m.id}>
             {/* arrow indicator */}
@@ -36,7 +56,7 @@ const MeetupList: React.FC<Props> = ({ filtered, totalCount, selected }) => {
 
             {/* date + title with conditional coloring/dimming */}
             <Text color={color} dimColor={isPast}>
-              {format(new Date(m.dateTime), "yyyy-MM-dd HH:mm")} – {m.title} | {m.rsvpsCount} - {m.venueName}, {m.city}
+            {timeToGo} {source} {m.title} | {m.venueName}
             </Text>
           </Box>
         );
