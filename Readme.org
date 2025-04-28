@@ -1,0 +1,15 @@
+#+TITLE: mcli
+#+DESCRIPTION: mcli - cli to aggregate meetups into your terminal
+#+DATE: Monday, Apr 28 2025
+
+
+** Setup
+#+begin_src bash
+# install bun
+curl -fsSL https://bun.sh/install | bash
+
+# run
+bun run src/index.tsx
+#+end_src
+
+
