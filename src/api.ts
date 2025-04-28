@@ -16,7 +16,7 @@ export interface Meetup {
   ticketCount: number;
 }
 
-const BASE = "http://localhost:3000";
+const BASE = "https://e.thapakazi.com" || "http://localhost:3000";
 
 export async function fetchMeetups(): Promise<Meetup[]> {
   const res = await fetch(`${BASE}/meetups`);
