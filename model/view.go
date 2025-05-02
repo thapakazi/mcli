@@ -1,3 +1,12 @@
+package model
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
 // View implements tea.Model.View.
 func (m Model) View() string {
 	if m.Loading {

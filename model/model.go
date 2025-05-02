@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/thapakazi/mcli/api"
 	"github.com/thapakazi/mcli/types"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	// Import glamour for Markdown rendering
 )
 
@@ -193,5 +191,3 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, nil
 }
-
-
