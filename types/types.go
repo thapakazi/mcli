@@ -5,7 +5,7 @@ type Event struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Url         string `json:"url"`
-	Location    string `json:"location"`
+	Location    string `json:"venueAddress"`
 	DateTime    string `json:"dateTime"`
 	Source      string `json:"source"`
 }

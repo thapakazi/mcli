@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(initModel(), tea.WithInput(os.Stdin))
+	p := tea.NewProgram(initModel(), tea.WithInput(os.Stdin), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed with error:%v\n", err)
 	}

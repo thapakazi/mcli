@@ -6,17 +6,22 @@ import (
 	"mcli/types"
 	"mcli/utils"
 
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type model struct {
-	Events []types.Event
-	Err    error
+	Events       []types.Event
+	table        table.Model
+	windowHeight int
+	Err          error
 }
 
 func initModel() model {
 	return model{
-		Events: []types.Event{},
+		Events:       []types.Event{},
+		table:        utils.CreateTable([]types.Event{}, 10),
+		windowHeight: 10,
 	}
 }
 
@@ -33,9 +38,14 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.windowHeight = msg.Height
+		m.table = utils.CreateTable(m.Events, m.windowHeight)
+		return m, nil
 	case types.EventsMsg:
 		m.Events = msg.Events
 		m.Err = msg.Err
+		m.table = utils.CreateTable(m.Events, m.windowHeight)
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -49,7 +59,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
 }
 
 func (m model) View() string {
@@ -59,9 +71,5 @@ func (m model) View() string {
 	if len(m.Events) == 0 {
 		return "No events found\n"
 	}
-	output := "Fetched events:\n"
-	for _, event := range m.Events {
-		output += fmt.Sprintf("%s: %+v\n", event.DateTime, event.Title)
-	}
-	return output
+	return utils.BaseStyle.Render(m.table.View())
 }
