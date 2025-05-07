@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -8,7 +9,9 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(initModel(), tea.WithInput(os.Stdin), tea.WithAltScreen())
+	debug := flag.Bool("debug", false, "Enable debug logging to debug.log")
+	flag.Parse()
+	p := tea.NewProgram(initModel((*debug)), tea.WithInput(os.Stdin), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed with error:%v\n", err)
 	}
