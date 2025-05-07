@@ -1,4 +1,4 @@
-package main
+package types
 
 type Event struct {
 	ID          string `json:"id"`
@@ -11,3 +11,8 @@ type Event struct {
 }
 
 type ErrMsg struct{ Err error }
+
+type EventsMsg struct {
+	Events []Event
+	Err    error
+}
