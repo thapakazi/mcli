@@ -72,7 +72,6 @@ type Logger struct {
 
 // NewLogger initializes a new Logger instance
 func NewLogger(debug bool) *Logger {
-
 	writer := &memoryWriter{
 		lines:    make([]string, 0, maxDebugLines),
 		maxLines: maxDebugLines,
@@ -89,17 +88,16 @@ func NewLogger(debug bool) *Logger {
 		writer.file = file
 	}
 
-	// Create a multi-writer to write to both the file and memory
+	// Use only the memoryWriter as the output
 	var output io.Writer = writer
-	if debug {
-		output = io.MultiWriter(writer, file)
-	} else {
+	if !debug {
 		output = io.Discard
 	}
 
 	// Initialize the logger
 	logger := log.NewWithOptions(output, log.Options{
 		ReportTimestamp: true,
+		ReportCaller:    true,
 		Level:           log.DebugLevel,
 	})
 	if !debug {
@@ -111,7 +109,7 @@ func NewLogger(debug bool) *Logger {
 	}
 
 	// Initialize the viewport
-	vp := viewport.New(0, viewportHeight) // Width will be set dynamically, height is 5 lines
+	vp := viewport.New(0, viewportHeight) // Width will be set dynamically, height is 7 lines
 	vp.Style = lipgloss.NewStyle().
 		Background(lipgloss.Color("#222222")).
 		Foreground(lipgloss.Color("#FFFFFF"))
@@ -124,6 +122,14 @@ func NewLogger(debug bool) *Logger {
 		labelStyle: labelStyle,
 		viewport:   vp,
 	}
+}
+
+// Close closes the log file if it is open
+func (l *Logger) Close() error {
+	if l.writer.file != nil {
+		return l.writer.file.Close()
+	}
+	return nil
 }
 
 // GetLogger returns the logger instance
@@ -161,7 +167,7 @@ func (l *Logger) UpdateViewportContent() {
 	debugContent := strings.Join(l.writer.GetLines(), "\n")
 	l.viewport.SetContent(debugContent)
 	// Ensure the viewport scrolls to the bottom to show the latest logs
-	l.viewport.SetYOffset(max(0, len(l.writer.GetLines())-5))
+	l.viewport.SetYOffset(max(0, len(l.writer.GetLines())-viewportHeight))
 }
 
 // UpdateViewport updates the viewport dimensions and content
@@ -196,12 +202,4 @@ func (l *Logger) RenderDebugPanel(width int) string {
 	}
 	topBorder := "┏" + strings.Repeat("━", leftPadding) + label + strings.Repeat("━", rightPadding) + "┓"
 	return lipgloss.JoinVertical(lipgloss.Center, topBorder, content)
-}
-
-// max returns the maximum of two integers
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
