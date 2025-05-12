@@ -13,7 +13,6 @@ import (
 
 type Sidebar struct {
 	visible  bool
-	content  types.Event
 	viewport viewport.Model
 	Width    int
 }
@@ -26,7 +25,6 @@ func NewSidebar(width int) Sidebar {
 		Foreground(lipgloss.Color("#FFFFFF"))
 	return Sidebar{
 		visible:  false,
-		content:  types.Event{},
 		viewport: vp,
 		Width:    width, // manually setitng 30 for now, TODO make it dynamic
 	}

@@ -6,6 +6,7 @@ import (
 	"mcli/types"
 	"mcli/utils"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,6 +20,7 @@ type model struct {
 	Events   []types.Event
 	table    tui.Table
 	sidebar  tui.Sidebar
+	filter   tui.Filter
 	logger   *utils.Logger
 	termSize termSize
 	loading  bool
@@ -55,6 +57,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Events = msg.Events
 		m.table = tui.NewTable(m.Events)
 		m.sidebar = tui.NewSidebar(0)
+		m.filter = tui.NewFilter()
 
 	case tea.WindowSizeMsg:
 		m.logger.GetLogger().Debug("update/tea.WindowSizeMsg", "type", msg)
@@ -63,10 +66,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// set sidebarWidth be ceratin % of total available width
 		sidebarWidth := int(float64(m.termSize.width) * 0.65)
-		if sidebarWidth < 10 {
-			sidebarWidth = 10 // Ensure minimum width
-		}
-		m.sidebar.Width = sidebarWidth
+		m.sidebar.Width = max(sidebarWidth, 10) // Ensure minimum width
 
 		// adjust table dimension if not loading
 		if !m.loading && m.err == nil {
@@ -84,6 +84,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		m.logger.GetLogger().Info("update/key pressed", "key", msg.String())
+		if m.filter.IsFiltering() {
+			switch msg.String() {
+			case "esc":
+				m.filter.ToggleFilterView()
+			case "enter":
+				m.filter.Text = m.filter.Input.Value()
+			default:
+				var cmd tea.Cmd
+				m.filter, cmd = m.filter.Update(msg)
+				m.filter.Text = m.filter.Input.Value()
+				m.logger.GetLogger().Info("filtering list", "text", m.filter.Text)
+				return m, cmd
+			}
+			return m, nil
+		}
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -99,8 +114,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.logger.GetLogger().Info("Inspecting details on", "event", event.ID)
 			}
 			m.table.SetWidth(tableWidth, m.termSize.width, m.sidebar.IsVisible(), m.Events)
-
 			return m, nil
+
+		case "/":
+			m.logger.GetLogger().Info("Filtering the entries")
+			m.filter.ToggleFilterView()
+			tableHeight := m.termSize.height
+			if m.filter.IsFiltering() {
+				tableHeight = m.termSize.height - 2 // input filed area
+			}
+			m.table.SetHeight(tableHeight)
+			m.filter.Input.Focus()
+			return m, textinput.Blink
+
 		case "`":
 			m.logger.ToggleDebugView()
 			return m, nil
@@ -115,6 +141,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
+
 		m.table, cmd = m.table.Update(msg)
 		return m, cmd
 	}
@@ -125,6 +152,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if !m.sidebar.IsVisible() {
 		m.table, cmd = m.table.Update(msg)
+	} else if m.filter.IsFiltering() {
+		m.filter, cmd = m.filter.Update(msg)
 	} else {
 		m.sidebar, cmd = m.sidebar.Update(msg)
 	}
@@ -165,6 +194,10 @@ func (m model) View() string {
 			Render(
 				lipgloss.JoinHorizontal(lipgloss.Left, tableView, m.sidebar.View()),
 			)
+	}
+
+	if m.filter.IsFiltering() {
+		return lipgloss.JoinVertical(lipgloss.Left, tableView, m.filter.View())
 	}
 
 	// debugPanel := m.logger.RenderDebugPanel(m.termSize.width - 2) // Adjust for border
