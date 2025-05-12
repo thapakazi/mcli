@@ -11,6 +11,7 @@ import (
 
 	"mcli/types"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
 )
 
@@ -28,7 +29,7 @@ func LoadEnv() (string, error) {
 
 }
 
-func FetchEvents() ([]types.Event, error) {
+func fetchEvents() ([]types.Event, error) {
 	apiBaseUrl, err := LoadEnv()
 	if err != nil {
 		return nil, err
@@ -56,4 +57,20 @@ func FetchEvents() ([]types.Event, error) {
 		return nil, fmt.Errorf("Failed to parse response, %w", err)
 	}
 	return events, nil
+}
+
+type FetchErrorMsg struct {
+	Err error
+}
+
+type FetchSuccessMsg struct {
+	Events []types.Event
+}
+
+func FetchEventCmd() tea.Msg {
+	events, err := fetchEvents()
+	if err != nil {
+		return FetchErrorMsg{Err: err}
+	}
+	return FetchSuccessMsg{Events: events}
 }

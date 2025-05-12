@@ -1,89 +1,85 @@
 package main
 
 import (
-	"fmt"
-
+	"mcli/tui"
+	"mcli/tui/styles"
 	"mcli/types"
 	"mcli/utils"
 
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-type windowSize struct {
+type termSize struct {
 	height int
 	width  int
 }
 
 type model struct {
-	Events     []types.Event
-	table      table.Model
-	windowSize windowSize
-	Err        error
-	logger     *utils.Logger
+	Events   []types.Event
+	table    tui.Table
+	sidebar  tui.Sidebar
+	logger   *utils.Logger
+	termSize termSize
+	loading  bool
+	err      error
 }
 
-// updateTableMsg is a custom message to trigger a table update
-type updateTableMsg struct{}
-
-// updateTableCmd returns a command that dispatches an updateTableMsg
-func updateTableCmd() tea.Cmd {
-	return func() tea.Msg {
-		return updateTableMsg{}
-	}
-}
-
-func initModel(debug bool) model {
-	defaultSize := windowSize{height: 10, width: 80}
-	logger := utils.NewLogger(debug)
+func NewModel(debug bool) model {
 	return model{
-		Events:     []types.Event{},
-		table:      utils.CreateTable([]types.Event{}, defaultSize.height, defaultSize.width),
-		windowSize: defaultSize,
-		logger:     logger,
+		loading: true,
+		logger:  utils.NewLogger(debug),
 	}
 }
 
+// Call fetchEvents to populate the table
 func (m model) Init() tea.Cmd {
 	m.logger.GetLogger().Debug("Init Called")
-	return func() tea.Msg {
-		events, err := utils.FetchEvents()
-		return types.EventsMsg{
-			Events: events,
-			Err:    err,
-		}
-	}
-}
-
-// updateTable updates the table with the current events and window dimensions,
-// adjusting the height based on whether the debug view is shown.
-func (m *model) updateTable() {
-	adjustedHeight := m.windowSize.height
-	if m.logger.IsDebugViewShown() {
-		adjustedHeight = m.windowSize.height - m.logger.GetDebugPanelHeight()
-	}
-	m.table = utils.CreateTable(m.Events, adjustedHeight, m.windowSize.width)
+	return utils.FetchEventCmd
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
+
+	case utils.FetchErrorMsg:
+		m.logger.GetLogger().Debug("update/tea.FetchErrorMsg")
+		m.loading = false
+		m.err = msg.Err
+		return m, nil
+
+	case utils.FetchSuccessMsg:
+		m.logger.GetLogger().Debug("update/tea.FetchSuccessMsg")
+		m.loading = false
+		m.Events = msg.Events
+		m.table = tui.NewTable(m.Events)
+		m.sidebar = tui.NewSidebar(0)
+
 	case tea.WindowSizeMsg:
 		m.logger.GetLogger().Debug("update/tea.WindowSizeMsg", "type", msg)
-		m.windowSize = windowSize{
-			height: msg.Height,
-			width:  msg.Width,
+		m.termSize.height = msg.Height
+		m.termSize.width = msg.Width
+
+		// set sidebarWidth be ceratin % of total available width
+		sidebarWidth := int(float64(m.termSize.width) * 0.65)
+		if sidebarWidth < 10 {
+			sidebarWidth = 10 // Ensure minimum width
 		}
-		return m, updateTableCmd()
+		m.sidebar.Width = sidebarWidth
 
-	case types.EventsMsg:
-		m.logger.GetLogger().Debug("update/tea.EventMsg")
-		m.Events = msg.Events
-		m.Err = msg.Err
-		return m, updateTableCmd()
+		// adjust table dimension if not loading
+		if !m.loading && m.err == nil {
 
-	case updateTableMsg:
-		m.updateTable()
+			tableWidth := m.termSize.width
+			sidebarIsVisible := m.sidebar.IsVisible()
+			if sidebarIsVisible {
+				tableWidth = m.termSize.width - sidebarWidth
+			}
+			m.table.SetWidth(tableWidth, m.termSize.width, sidebarIsVisible, m.Events)
+			m.table.SetHeight(m.termSize.height - 1)
+		}
+
 		return m, nil
 
 	case tea.KeyMsg:
@@ -91,12 +87,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "enter":
-			m.logger.GetLogger().Info("enter pressed")
+		case "y":
+			m.sidebar.ToggleSidebarView()
+
+			tableWidth := m.termSize.width
+			if m.sidebar.IsVisible() {
+				tableWidth = m.termSize.width - m.sidebar.Width
+				cursor := m.table.Cursor()
+				event := m.Events[cursor]
+				m.sidebar.UpdateSidebarConntent(event)
+				m.logger.GetLogger().Info("Inspecting details on", "event", event.ID)
+			}
+			m.table.SetWidth(tableWidth, m.termSize.width, m.sidebar.IsVisible(), m.Events)
+
 			return m, nil
 		case "`":
 			m.logger.ToggleDebugView()
-			return m, updateTableCmd()
+			return m, nil
 		case "up":
 			if m.logger.IsDebugViewShown() {
 				m.logger.ScrollUp()
@@ -108,33 +115,61 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
-		var cmd tea.Cmd
 		m.table, cmd = m.table.Update(msg)
 		return m, cmd
 	}
 
-	var cmd tea.Cmd
-	m.table, cmd = m.table.Update(msg)
+	// Ignore table/sidebar updates while loading or if there's an error
+	if m.loading || m.err != nil {
+		return m, nil
+	}
+	if !m.sidebar.IsVisible() {
+		m.table, cmd = m.table.Update(msg)
+	} else {
+		m.sidebar, cmd = m.sidebar.Update(msg)
+	}
 	return m, cmd
 }
 
 func (m model) View() string {
-	if m.Err != nil {
-		return fmt.Sprintf("Error fetching events. %s\n", m.Err.Error())
+	if m.loading {
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6")). // Cyan
+			Render("Loading...")
+	}
+
+	// Show error if fetch failed
+	if m.err != nil {
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")).
+			Render("Error: " + m.err.Error())
 	}
 	if len(m.Events) == 0 {
-		return "No events found\n"
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("3")).
+			Render("No events found\n")
 	}
 
-	mainContent := m.table.View()
-	if !m.logger.IsDebugViewShown() {
-		return utils.BaseStyle.
-			Width(m.windowSize.width - 2). // Adjust for border
-			Render(mainContent)
+	tableView := m.table.View(m.termSize.width)
+
+	// if !m.logger.IsDebugViewShown() {
+	// 	return styles.BaseStyle.
+	// 		Width(m.termSize.width - 2). // Adjust for border
+	// 		Render(mainContent)
+	// }
+	if m.sidebar.IsVisible() {
+
+		//m.logger.GetLogger().Debug("Descirption", "desc", sideBarContent)
+		return styles.BaseStyle.
+			Width(m.termSize.width - 2). // Adjust for border
+			Render(
+				lipgloss.JoinHorizontal(lipgloss.Left, tableView, m.sidebar.View()),
+			)
 	}
 
-	debugPanel := m.logger.RenderDebugPanel(m.windowSize.width - 2) // Adjust for border
-	return utils.BaseStyle.
-		Width(m.windowSize.width - 2). // Adjust for border
-		Render(lipgloss.JoinVertical(lipgloss.Left, mainContent, debugPanel))
+	// debugPanel := m.logger.RenderDebugPanel(m.termSize.width - 2) // Adjust for border
+	// return styles.BaseStyle.
+	// 	Width(m.termSize.width - 2). // Adjust for border
+	// 	Render(lipgloss.JoinVertical(lipgloss.Left, mainContent, debugPanel))
+	return tableView
 }
