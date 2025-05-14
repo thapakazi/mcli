@@ -3,6 +3,7 @@ package tui
 import (
 	"mcli/tui/styles"
 	"mcli/types"
+	"mcli/utils"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -43,12 +44,16 @@ func createTableRows(events []types.Event) []table.Row {
 			sourceIcon = "☘️"
 		}
 		title := event.Title
+		_, _, dateTime, _ := utils.ParseAndCompareDateTime(event.DateTime)
+		//if isFutureOrCurrent {
 		rows = append(rows, table.Row{
 			sourceIcon,
 			title,
 			event.Location,
-			event.DateTime,
+			dateTime,
 		})
+
+		//}
 	}
 	return rows
 }
@@ -87,9 +92,19 @@ func (t *Table) SetWidth(width int, termWidth int, sidebarVisible bool, events [
 	t.UpdateColumnWidth(termWidth, sidebarVisible, events)
 }
 
+// get table width
+func (t *Table) Width() int {
+	return t.model.Width()
+}
+
 // set table height
 func (t *Table) SetHeight(height int) {
 	t.model.SetHeight(height)
+}
+
+// get table height
+func (t *Table) Height() int {
+	return t.model.Height()
 }
 
 // pass down updates to the table

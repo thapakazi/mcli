@@ -17,7 +17,7 @@ type termSize struct {
 }
 
 type model struct {
-	Events   []types.Event
+	Events   types.Events
 	table    tui.Table
 	sidebar  tui.Sidebar
 	filter   tui.Filter
@@ -55,7 +55,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.GetLogger().Debug("update/tea.FetchSuccessMsg")
 		m.loading = false
 		m.Events = msg.Events
-		m.table = tui.NewTable(m.Events)
+		m.table = tui.NewTable(m.DisplayedEvents(""))
 		m.sidebar = tui.NewSidebar(0)
 		m.filter = tui.NewFilter()
 
@@ -63,23 +63,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.GetLogger().Debug("update/tea.WindowSizeMsg", "type", msg)
 		m.termSize.height = msg.Height
 		m.termSize.width = msg.Width
-
-		// set sidebarWidth be ceratin % of total available width
-		sidebarWidth := int(float64(m.termSize.width) * 0.65)
-		m.sidebar.Width = max(sidebarWidth, 10) // Ensure minimum width
-
-		// adjust table dimension if not loading
-		if !m.loading && m.err == nil {
-
-			tableWidth := m.termSize.width
-			sidebarIsVisible := m.sidebar.IsVisible()
-			if sidebarIsVisible {
-				tableWidth = m.termSize.width - sidebarWidth
-			}
-			m.table.SetWidth(tableWidth, m.termSize.width, sidebarIsVisible, m.Events)
-			m.table.SetHeight(m.termSize.height - 1)
-		}
-
+		m.AdjustViewports()
+		m.DebugLayout()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -88,12 +73,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				m.filter.ToggleFilterView()
+				m.table = tui.NewTable(m.DisplayedEvents(""))
 			case "enter":
+				m.filter.ToggleFilterView()
 				m.filter.Text = m.filter.Input.Value()
+				m.table = tui.NewTable(m.DisplayedEvents(m.filter.Text))
+				m.filter.Input.Blur()
 			default:
 				var cmd tea.Cmd
 				m.filter, cmd = m.filter.Update(msg)
 				m.filter.Text = m.filter.Input.Value()
+				m.table = tui.NewTable(m.DisplayedEvents(m.filter.Text))
 				m.logger.GetLogger().Info("filtering list", "text", m.filter.Text)
 				return m, cmd
 			}
@@ -105,15 +95,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "y":
 			m.sidebar.ToggleSidebarView()
 
-			tableWidth := m.termSize.width
+			filteredEvents := m.DisplayedEvents(m.filter.Text)
+			m.logger.GetLogger().Info("filteredEvents", "count", len(filteredEvents))
 			if m.sidebar.IsVisible() {
-				tableWidth = m.termSize.width - m.sidebar.Width
 				cursor := m.table.Cursor()
-				event := m.Events[cursor]
-				m.sidebar.UpdateSidebarConntent(event)
+				event := filteredEvents[cursor]
+				m.sidebar.UpdateSidebarConntent(event, m.termSize.height)
 				m.logger.GetLogger().Info("Inspecting details on", "event", event.ID)
 			}
-			m.table.SetWidth(tableWidth, m.termSize.width, m.sidebar.IsVisible(), m.Events)
+			m.AdjustViewports()
+			m.DebugLayout()
 			return m, nil
 
 		case "/":
@@ -205,4 +196,45 @@ func (m model) View() string {
 	// 	Width(m.termSize.width - 2). // Adjust for border
 	// 	Render(lipgloss.JoinVertical(lipgloss.Left, mainContent, debugPanel))
 	return tableView
+}
+
+// DisplayedEvents returns either the filtered slice (if filter.Text != "")
+// or the full list.
+func (m model) DisplayedEvents(filter string) []types.Event {
+	if filter == "" {
+		return m.Events
+	}
+	return tui.FilterEvents(m.Events, filter)
+}
+
+func (m *model) SortByDateTime() {
+
+}
+
+func (m *model) AdjustViewports() {
+
+	// set sidebarWidth be ceratin % of total available width
+	sidebarWidth := int(float64(m.termSize.width) * 0.65)
+	m.sidebar.Width = max(sidebarWidth, 10) // Ensure minimum width
+
+	// adjust table dimension if not loading
+	if !m.loading && m.err == nil {
+
+		// table spans over the available terminal width
+		tableWidth := m.termSize.width
+		sidebarIsVisible := m.sidebar.IsVisible()
+		if sidebarIsVisible {
+			tableWidth = m.termSize.width - sidebarWidth
+		}
+		m.table.SetWidth(tableWidth, m.termSize.width, sidebarIsVisible, m.DisplayedEvents(m.filter.Text))
+		m.table.SetHeight(m.termSize.height - 1)
+	}
+
+}
+
+func (m model) DebugLayout() {
+	m.logger.GetLogger().Debug("table", "width", m.table.Width())
+	m.logger.GetLogger().Debug("table", "height", m.table.Height())
+	m.logger.GetLogger().Debug("sidebar", "width", m.sidebar.Width)
+	m.logger.GetLogger().Debug("sidebar", "height", m.sidebar.GetHeight())
 }

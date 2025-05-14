@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"time"
 
 	"mcli/types"
@@ -72,5 +73,33 @@ func FetchEventCmd() tea.Msg {
 	if err != nil {
 		return FetchErrorMsg{Err: err}
 	}
-	return FetchSuccessMsg{Events: events}
+	// sort events prior to returning
+	sortedEvents := sortByDate(events)
+	return FetchSuccessMsg{Events: sortedEvents}
+}
+
+// sortByDate sorts a slice of Events by DateTime in descending order
+func sortByDate(events types.Events) types.Events {
+	// Use sort.Slice to sort events in place
+	sort.Slice(events, func(i, j int) bool {
+		// Parse DateTime for both events
+		timeI, errI := parseDateTime(events[i].DateTime)
+		timeJ, errJ := parseDateTime(events[j].DateTime)
+
+		// Handle parsing errors: invalid dates go to the end
+		if errI != nil && errJ != nil {
+			return false
+		}
+		if errI != nil {
+			return false
+		}
+		if errJ != nil {
+			return true
+		}
+
+		// Sort by date in descending order
+		return timeI.After(timeJ)
+	})
+
+	return events
 }

@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 	"mcli/types"
-	"strings"
+	"mcli/utils"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,32 +36,38 @@ func (s *Sidebar) ToggleSidebarView() {
 	s.visible = !s.visible
 }
 
-func (s *Sidebar) UpdateSidebarConntent(event types.Event) {
+func (s *Sidebar) UpdateSidebarConntent(event types.Event, height int) {
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render(event.Title)
 
 	description, _ := glamour.Render(event.Description, "dark")
+	if event.Description == "" {
+		description, _ = glamour.Render("press R to fetch description", "dark")
+	}
+
 	url := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render(event.Url)
-	date := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render(event.DateTime)
+
+	_, _, dateTime, _ := utils.ParseAndCompareDateTime(event.DateTime)
+	date := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render(dateTime)
+	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5")).Render("Description:\n------------")
 	source := event.Source
 
 	sidebarText := fmt.Sprintf(
-		"%s\n\n🔗: %s\n\n＃: %s\n\n📅:%s\n\nDescription:\n-----------\n%s",
-		title, url, source, date, description,
+		"%s\n\n🔗: %s\n\n＃: %s\n\n📅:%s\n\n%s\n%s",
+		title, url, source, date, styledDescription, description,
 	)
 
 	// Style the sidebar content
 	contentStyle := lipgloss.NewStyle().
-		Width(s.Width - 4). // Account for padding
 		Foreground(lipgloss.Color("15"))
 
 	// Wrap the text to fit the viewport width
 	renderedContent := contentStyle.Render(sidebarText)
 
 	// Calculate the actual content height (number of lines)
-	contentHeight := strings.Count(renderedContent, "\n") + 1
+	// contentHeight := strings.Count(renderedContent, "\n") + 1
 
-	s.viewport.Height = contentHeight
+	s.viewport.Height = height - 6
 	s.viewport.SetContent(renderedContent)
 }
 
@@ -89,3 +95,6 @@ func (s Sidebar) View() string {
 
 	return sidebarStyle.Render(s.viewport.View())
 }
+
+func (s Sidebar) GetHeight() int { return s.viewport.Height }
+func (s Sidebar) GetWidth() int  { return s.Width }
