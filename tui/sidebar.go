@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"mcli/types"
 	"mcli/utils"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/truncate"
 )
 
 type Sidebar struct {
@@ -19,15 +21,17 @@ type Sidebar struct {
 
 func NewSidebar(width int) Sidebar {
 
+	utils.Logger.Info("NewSidebar called")
 	vp := viewport.New(width, 20) // initial height
 	vp.Style = lipgloss.NewStyle().
-		Background(lipgloss.Color("#222222")).
 		Foreground(lipgloss.Color("#FFFFFF"))
-	return Sidebar{
+	sidebar := Sidebar{
 		visible:  false,
 		viewport: vp,
 		Width:    width, // manually setitng 30 for now, TODO make it dynamic
 	}
+	utils.Logger.Info("Sidebar", "sidebar", sidebar)
+	return sidebar
 }
 func (s *Sidebar) IsVisible() bool {
 	return s.visible
@@ -47,28 +51,30 @@ func (s *Sidebar) UpdateSidebarConntent(event types.Event, height int) {
 
 	url := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render(event.Url)
 
-	_, _, dateTime, _ := utils.ParseAndCompareDateTime(event.DateTime)
-	date := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render(dateTime)
+	parsedTime, _, _, _ := utils.ParseAndCompareDateTime(event.DateTime)
+	date := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render(parsedTime.String())
 	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5")).Render("Description:\n------------")
-	source := event.Source
+	location := event.Location
 
 	sidebarText := fmt.Sprintf(
-		"%s\n\n🔗: %s\n\n＃: %s\n\n📅:%s\n\n%s\n%s",
-		title, url, source, date, styledDescription, description,
+		"%s\n\n🔗: %s\n\n📍: %s\n\n📅:%s\n\n%s\n%s",
+		title, url, location, date, styledDescription, description,
 	)
+	// Split into lines
+	lines := strings.Split(sidebarText, "\n")
 
-	// Style the sidebar content
-	contentStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("15"))
-
-	// Wrap the text to fit the viewport width
-	renderedContent := contentStyle.Render(sidebarText)
+	// Truncate each line to viewport width
+	for i, line := range lines {
+		lines[i] = truncate.StringWithTail(line, uint(90), "...")
+	}
+	truncatedContent := strings.Join(lines, "\n")
 
 	// Calculate the actual content height (number of lines)
 	// contentHeight := strings.Count(renderedContent, "\n") + 1
 
-	s.viewport.Height = height - 6
-	s.viewport.SetContent(renderedContent)
+	//s.viewport.Height = height - 6
+	//s.viewport.Width = s.Width - 4
+	s.viewport.SetContent(truncatedContent)
 }
 
 func (s *Sidebar) Update(msg tea.Msg) (Sidebar, tea.Cmd) {

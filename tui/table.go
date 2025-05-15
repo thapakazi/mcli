@@ -14,16 +14,22 @@ type Table struct {
 	model table.Model
 }
 
-func getTableColumns(width int, showTitleOnly bool) []table.Column {
+func getTableColumns(width int, isSidebarVisible bool) []table.Column {
 
-	eventWidth := int(float64(width) * 0.55)
-	locationWidth := int(float64(width) * 0.20)
-	dateWidth := int(float64(width) * 0.20)
+	locationWidth := int(float64(width) * 0.2)
+	dateWidth := int(float64(width) * 0.2)
+	remaining := width - locationWidth - dateWidth
+	eventWidth := int(float64(remaining) * 1)
+
+	utils.Logger.Info("getTableColumns", "width", width)
+	utils.Logger.Info("getTableColumns", "locationWidth", locationWidth)
+	utils.Logger.Info("getTableColumns", "dateWidth", dateWidth)
+	utils.Logger.Info("getTableColumns", "eventWidth", eventWidth)
 
 	// if showTitleOnly is set, i,e when sidebar is visible
-	if showTitleOnly {
+	if isSidebarVisible {
 		locationWidth = 0
-		dateWidth = 0
+		dateWidth = 10
 	}
 	return []table.Column{
 		{Title: "🚀", Width: 2},
@@ -60,7 +66,7 @@ func createTableRows(events []types.Event) []table.Row {
 
 // Initialize new table
 func NewTable(events []types.Event) Table {
-	width := 100 // initial width size of table
+	width := 0 // initial width size of table, will be adjusted dynamically
 	showTitleOnly := false
 	t := table.New(
 		table.WithColumns(getTableColumns(width, showTitleOnly)),

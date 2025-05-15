@@ -1,18 +1,24 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
+
+	"mcli/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	debug := flag.Bool("debug", false, "Enable debug logging to debug.log")
-	flag.Parse()
+
+	// Initialize the global logger
+	utils.InitLogger()
+
+	// Log a startup message
+	utils.Logger.Info("Program started")
+
 	p := tea.NewProgram(
-		NewModel((*debug)),
+		NewModel(),
 		tea.WithInput(os.Stdin),
 		tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
