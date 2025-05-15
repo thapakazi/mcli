@@ -17,18 +17,21 @@ type Sidebar struct {
 	visible  bool
 	viewport viewport.Model
 	Width    int
+	Height   int
 }
 
-func NewSidebar(width int) Sidebar {
+func NewSidebar() Sidebar {
 
 	utils.Logger.Info("NewSidebar called")
-	vp := viewport.New(width, 20) // initial height
+	width, height := 20, 20               // initial default width,height
+	vp := viewport.New(width-2, height-4) // -2 for border and space to left, -4 for 2 space at top and bottom
 	vp.Style = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FFFFFF"))
 	sidebar := Sidebar{
 		visible:  false,
 		viewport: vp,
-		Width:    width, // manually setitng 30 for now, TODO make it dynamic
+		Width:    width,
+		Height:   height,
 	}
 	utils.Logger.Info("Sidebar", "sidebar", sidebar)
 	return sidebar
@@ -40,7 +43,7 @@ func (s *Sidebar) ToggleSidebarView() {
 	s.visible = !s.visible
 }
 
-func (s *Sidebar) UpdateSidebarConntent(event types.Event, height int) {
+func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render(event.Title)
 
@@ -104,3 +107,11 @@ func (s Sidebar) View() string {
 
 func (s Sidebar) GetHeight() int { return s.viewport.Height }
 func (s Sidebar) GetWidth() int  { return s.Width }
+
+func (s *Sidebar) SetSidebarViewportHeight(height int) {
+	s.viewport.Height = height
+}
+
+func (s *Sidebar) SetSidebarViewportWidth(width int) {
+	s.viewport.Width = width
+}
