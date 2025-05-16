@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -36,7 +35,7 @@ func fetchEvents() ([]types.Event, error) {
 		return nil, err
 	}
 	apiUrl := apiBaseUrl + "/events"
-	log.Printf("Fetching events from :%s", apiUrl)
+	Logger.Info("Fetching events from", apiUrl, apiUrl)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,

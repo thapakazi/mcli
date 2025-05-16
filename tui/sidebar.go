@@ -16,7 +16,7 @@ import (
 
 type Sidebar struct {
 	visible  bool
-	viewport viewport.Model
+	Viewport viewport.Model
 	Width    int
 	Height   int
 }
@@ -29,7 +29,7 @@ func NewSidebar() Sidebar {
 	vp.Style = lipgloss.NewStyle()
 	sidebar := Sidebar{
 		visible:  false,
-		viewport: vp,
+		Viewport: vp,
 		Width:    width,
 		Height:   height,
 	}
@@ -72,13 +72,13 @@ func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 	}
 	truncatedContent := strings.Join(lines, "\n")
 
-	s.viewport.SetContent(truncatedContent)
+	s.Viewport.SetContent(truncatedContent)
 
 }
 
 func (s *Sidebar) Update(msg tea.Msg) (Sidebar, tea.Cmd) {
 	var cmd tea.Cmd
-	s.viewport, cmd = s.viewport.Update(msg)
+	s.Viewport, cmd = s.Viewport.Update(msg)
 
 	utils.Logger.Debug("Sidebar / Update", "msg", msg)
 	return *s, cmd
@@ -102,10 +102,10 @@ func (s Sidebar) View() string {
 		PaddingTop(3).
 		PaddingLeft(2)
 
-		// s.viewport.Width = 30
-		// s.viewport.Height = 30
+		// s.Viewport.Width = 30
+		// s.Viewport.Height = 30
 
-	rendered := sidebarStyle.Render(s.viewport.View())
+	rendered := sidebarStyle.Render(s.Viewport.View())
 	//utils.Logger.Debug("Sidebar rendered", "content", rendered)
 	return rendered
 }
@@ -113,11 +113,11 @@ func (s Sidebar) View() string {
 func (s Sidebar) GetHeight() int        { return s.Height }
 func (s *Sidebar) SetHeight(height int) { s.Height = height }
 func (s *Sidebar) SetViewportHeight(height int) {
-	s.viewport.Height = height
+	s.Viewport.Height = height
 }
 
 func (s Sidebar) GetWidth() int       { return s.Width }
 func (s *Sidebar) SetWidth(width int) { s.Width = width }
 func (s *Sidebar) SetViewportWidth(width int) {
-	s.viewport.Width = width
+	s.Viewport.Width = width
 }

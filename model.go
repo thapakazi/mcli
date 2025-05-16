@@ -102,6 +102,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if m.sidebar.IsVisible() {
+			switch msg.String() {
+			case "q", "esc":
+				m.sidebar.ToggleSidebarView()
+				m.sidebar.Viewport.GotoTop()
+				m.AdjustViewports()
+				return m, nil
+
+			default:
+				var cmd tea.Cmd
+				m.sidebar, cmd = m.sidebar.Update(msg)
+				return m, cmd
+			}
+
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -129,6 +145,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filter.Input.Focus()
 				return m, textinput.Blink
 			}
+			return m, nil
+		case "r":
+			return m, utils.FetchEventCmd
+
+		case "o":
+			// open link in browser
+			events := m.DisplayedEvents(m.filter.Text)
+			utils.OpenURL(events[m.table.Cursor()].Url)
 			return m, nil
 		}
 
