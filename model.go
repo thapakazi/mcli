@@ -109,13 +109,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sidebar.Viewport.GotoTop()
 				m.AdjustViewports()
 				return m, nil
-
-			default:
-				var cmd tea.Cmd
-				m.sidebar, cmd = m.sidebar.Update(msg)
-				return m, cmd
 			}
-
 		}
 
 		switch msg.String() {
@@ -123,20 +117,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "y":
 			m.sidebar.ToggleSidebarView()
-			filteredEvents := m.DisplayedEvents(m.filter.Text)
-			if m.sidebar.IsVisible() && len(filteredEvents) > 0 {
-				cursor := m.table.Cursor()
-				//if cursor < len(filteredEvents) {
-				event := filteredEvents[cursor]
-				m.sidebar.UpdateSidebarContent(event, m.termSize.height)
-				utils.Logger.Info("Inspecting details on", "event", event.ID)
-				//	}
-			}
-			m.AdjustViewports()
-			m.DebugLayout()
-			var cmd tea.Cmd
-			m.sidebar, cmd = m.sidebar.Update(msg)
-			return m, cmd
+			// always render viewport from top
+			m.sidebarMovement(msg)
 		case "/":
 			utils.Logger.Info("Filtering the entries")
 			m.filter.ToggleFilterView()
@@ -154,9 +136,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			events := m.DisplayedEvents(m.filter.Text)
 			utils.OpenURL(events[m.table.Cursor()].Url)
 			return m, nil
+
+		case "h":
+			m.table.MoveDown(1)
+			if m.sidebar.IsVisible() {
+				m.sidebarMovement(msg)
+			}
+
+		case "l":
+			m.table.MoveUp(1)
+			if m.sidebar.IsVisible() {
+				m.sidebarMovement(msg)
+			}
 		}
 
 		var cmd tea.Cmd
+		if m.sidebar.IsVisible() {
+			m.sidebar, cmd = m.sidebar.Update(msg)
+			return m, cmd
+		}
+
 		m.table.Model, cmd = m.table.Update(msg)
 		return m, cmd
 	}
@@ -240,4 +239,21 @@ func (m *model) DebugLayout() {
 	utils.Logger.Debug("table", "height", m.table.Height())
 	utils.Logger.Debug("sidebar", "width", m.sidebar.Width)
 	utils.Logger.Debug("sidebar", "height", m.sidebar.GetHeight())
+}
+
+func (m *model) sidebarMovement(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	m.sidebar.Viewport.GotoTop()
+	filteredEvents := m.DisplayedEvents(m.filter.Text)
+	if m.sidebar.IsVisible() && len(filteredEvents) > 0 {
+		cursor := m.table.Cursor()
+		event := filteredEvents[cursor]
+		m.sidebar.UpdateSidebarContent(event, m.termSize.height)
+		utils.Logger.Info("Inspecting details on", "event", event.ID)
+	}
+	m.AdjustViewports()
+	m.DebugLayout()
+	var cmd tea.Cmd
+	m.sidebar, cmd = m.sidebar.Update(msg)
+	return m, cmd
 }
