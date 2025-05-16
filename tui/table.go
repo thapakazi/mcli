@@ -14,23 +14,23 @@ type Table struct {
 
 func getTableColumns(width int, isSidebarVisible bool) []table.Column {
 
-	locationWidth := int(float64(width) * 0.2)
-	dateWidth := int(float64(width) * 0.2)
-	remaining := width - locationWidth - dateWidth
-	eventWidth := int(float64(remaining) * 1)
+	iconWidth := 2
+	dateWidth := 8 // 8 chars enough
+	locationWidth := int(float64(width) * 0.25)
 
-	// if showTitleOnly is set, i,e when sidebar is visible
+	// hide location if sideber is shown
 	if isSidebarVisible {
 		locationWidth = 0
-		dateWidth = 10
 	}
-	// utils.Logger.Info("getTableColumns", "width", width)
-	// utils.Logger.Info("getTableColumns", "locationWidth", locationWidth)
-	// utils.Logger.Info("getTableColumns", "dateWidth", dateWidth)
-	// utils.Logger.Info("getTableColumns", "eventWidth", eventWidth)
+	remaining := width - locationWidth - dateWidth - iconWidth
+	eventWidth := int(float64(remaining) * 0.95)
+	utils.Logger.Info("getTableColumns", "width", width)
+	utils.Logger.Info("getTableColumns", "locationWidth", locationWidth)
+	utils.Logger.Info("getTableColumns", "dateWidth", dateWidth)
+	utils.Logger.Info("getTableColumns", "eventWidth", eventWidth)
 
 	return []table.Column{
-		{Title: "🚀", Width: 2},
+		{Title: "🚀", Width: iconWidth},
 		{Title: "Event", Width: eventWidth},
 		{Title: "Location", Width: locationWidth},
 		{Title: "Date", Width: dateWidth},
@@ -76,13 +76,15 @@ func NewTable(events []types.Event) Table {
 }
 
 // dynamicaly adjust the column width
-func (t *Table) AdjustColumns(termWidth int, sidebarVisible bool) {
+func (t *Table) AdjustColumns(termWidth int, isSidebarVisible bool) {
 
-	showTitleOnly := false
-	if sidebarVisible || termWidth < 40 {
-		showTitleOnly = true
+	if termWidth < 70 {
+		isSidebarVisible = true
 	}
 
-	columns := getTableColumns(t.Width(), showTitleOnly)
+	utils.Logger.Debug("AdjustColumns", "tableWidth", t.Width())
+	columns := getTableColumns(t.Width(), isSidebarVisible)
+
+	utils.Logger.Debug("AdjustColumns", "columns", columns)
 	t.SetColumns(columns)
 }
