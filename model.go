@@ -85,7 +85,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filter.ToggleFilterView()
 				m.filter.Text = m.filter.Input.Value()
 				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
-				m.statusbar.FilteredText = "/" + m.filter.Text // Update filter text
+				filterText := m.filter.Text
+				if filterText != "" {
+					filterText = "/" + filterText
+				}
+				m.statusbar.FilteredText = filterText // Update filter text
 				m.AdjustViewports()
 			default:
 				var cmd tea.Cmd
