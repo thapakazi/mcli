@@ -19,16 +19,16 @@ func getTableColumns(width int, isSidebarVisible bool) []table.Column {
 	remaining := width - locationWidth - dateWidth
 	eventWidth := int(float64(remaining) * 1)
 
-	utils.Logger.Info("getTableColumns", "width", width)
-	utils.Logger.Info("getTableColumns", "locationWidth", locationWidth)
-	utils.Logger.Info("getTableColumns", "dateWidth", dateWidth)
-	utils.Logger.Info("getTableColumns", "eventWidth", eventWidth)
-
 	// if showTitleOnly is set, i,e when sidebar is visible
 	if isSidebarVisible {
 		locationWidth = 0
 		dateWidth = 10
 	}
+	// utils.Logger.Info("getTableColumns", "width", width)
+	// utils.Logger.Info("getTableColumns", "locationWidth", locationWidth)
+	// utils.Logger.Info("getTableColumns", "dateWidth", dateWidth)
+	// utils.Logger.Info("getTableColumns", "eventWidth", eventWidth)
+
 	return []table.Column{
 		{Title: "🚀", Width: 2},
 		{Title: "Event", Width: eventWidth},

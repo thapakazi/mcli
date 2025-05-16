@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"flag"
 	"io"
 	"log/slog"
 	"os"
@@ -11,11 +10,7 @@ import (
 var Logger *slog.Logger
 
 // InitLogger initializes the global logger based on the --debug flag.
-func InitLogger() {
-	var debug bool
-	flag.BoolVar(&debug, "debug", false, "Enable debug logging to debug.log")
-	flag.Parse()
-
+func InitLogger(debug bool) {
 	// Define handler options to exclude time and level
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelDebug, // Accept all levels

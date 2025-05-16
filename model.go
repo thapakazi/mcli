@@ -19,22 +19,24 @@ type termSize struct {
 
 // model represents the application state
 type model struct {
-	Events   types.Events
-	table    tui.Table
-	sidebar  tui.Sidebar
-	filter   tui.Filter
-	termSize termSize
-	loading  bool
-	err      error
+	Events    types.Events
+	table     tui.Table
+	sidebar   tui.Sidebar
+	statusbar tui.StatusBar
+	filter    tui.Filter
+	termSize  termSize
+	loading   bool
+	err       error
 }
 
 // NewModel initializes the application model
 func NewModel() model {
 	return model{
-		loading: true,
-		table:   tui.NewTable(types.Events{}),
-		sidebar: tui.NewSidebar(),
-		filter:  tui.NewFilter(),
+		loading:   true,
+		table:     tui.NewTable(types.Events{}),
+		sidebar:   tui.NewSidebar(),
+		filter:    tui.NewFilter(),
+		statusbar: tui.NewStatusBar("Press 'q' to quit, '/' to filter, 'y' for deatils", "", 80),
 	}
 }
 
@@ -63,6 +65,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		utils.Logger.Debug("update/tea.WindowSizeMsg", "type", msg)
 		m.termSize.height = msg.Height
 		m.termSize.width = msg.Width
+		m.statusbar.Width = msg.Width - 2
 		m.AdjustViewports()
 		m.DebugLayout()
 		return m, nil
@@ -75,12 +78,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filter.ToggleFilterView()
 				m.filter.Text = ""
 				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents("")))
+				m.statusbar.FilteredText = "" // Clear filter text
 				m.AdjustViewports()
 			case "enter":
 				m.filter.ToggleFilterView()
 				m.filter.Text = m.filter.Input.Value()
 				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
-				m.filter.Input.Blur()
+				m.statusbar.FilteredText = "/" + m.filter.Text // Update filter text
 				m.AdjustViewports()
 			default:
 				var cmd tea.Cmd
@@ -101,15 +105,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			filteredEvents := m.DisplayedEvents(m.filter.Text)
 			if m.sidebar.IsVisible() && len(filteredEvents) > 0 {
 				cursor := m.table.Cursor()
-				if cursor < len(filteredEvents) {
-					event := filteredEvents[cursor]
-					m.sidebar.UpdateSidebarContent(event, m.termSize.height)
-					utils.Logger.Info("Inspecting details on", "event", event.ID)
-				}
+				//if cursor < len(filteredEvents) {
+				event := filteredEvents[cursor]
+				m.sidebar.UpdateSidebarContent(event, m.termSize.height)
+				utils.Logger.Info("Inspecting details on", "event", event.ID)
+				//	}
 			}
 			m.AdjustViewports()
 			m.DebugLayout()
-			return m, nil
+			var cmd tea.Cmd
+			m.sidebar, cmd = m.sidebar.Update(msg)
+			return m, cmd
 		case "/":
 			utils.Logger.Info("Filtering the entries")
 			m.filter.ToggleFilterView()
@@ -141,14 +147,24 @@ func (m model) View() string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("No events found\n")
 	}
 
-	tableView := m.table.View()
-	if m.sidebar.IsVisible() {
-		tableView = lipgloss.JoinHorizontal(lipgloss.Left, tableView, m.sidebar.View())
-	}
+	// start from table rendering
+	renderedView := m.table.View()
+
+	// if user is filtering the text
 	if m.filter.IsFiltering() {
-		return styles.BaseStyle.Render(lipgloss.JoinVertical(lipgloss.Top, tableView, m.filter.View()))
+		renderedView = lipgloss.JoinVertical(lipgloss.Top, renderedView, m.filter.View())
 	}
-	return styles.BaseStyle.Render(tableView)
+
+	// if sidebar is visible
+	if m.sidebar.IsVisible() {
+		renderedView = lipgloss.JoinHorizontal(lipgloss.Left, renderedView, m.sidebar.View())
+	}
+
+	// Add status bar
+	statusBarView := m.statusbar.View()
+	renderedView = lipgloss.JoinVertical(lipgloss.Left, renderedView, statusBarView)
+
+	return styles.BaseStyle.Render(renderedView)
 }
 
 // DisplayedEvents returns the current list of events based on the filter
@@ -160,29 +176,34 @@ func (m model) DisplayedEvents(filter string) []types.Event {
 }
 
 func (m *model) AdjustViewports() {
+
+	// Calculate statubar & filter height
+	statusbarHeight := 1
+	filterHeight := 0
+	if m.filter.IsFiltering() {
+		filterHeight = 1
+	}
+
+	// Calculate table height
+	tableHeight := m.termSize.height - statusbarHeight - filterHeight - 2 // 2 for border(head/tail)
+	m.table.SetHeight(tableHeight)
+	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
+
 	// Calculate table width
+	m.statusbar.Width = m.termSize.width - 2
 	tableWidth := m.termSize.width
 	if m.sidebar.IsVisible() {
-		sidebarWidth := int(float64(m.termSize.width) * 0.6) // Sidebar takes 30%, adjustable
-		m.sidebar.Width = max(sidebarWidth, 10)
+		//sidebarWidth := int(float64(m.termSize.width) * 0.3) // Sidebar takes 30%, adjustable
+		m.sidebar.Width = 100
 		tableWidth = m.termSize.width - m.sidebar.Width
+
+		m.sidebar.SetViewportWidth(m.sidebar.Width - 3) // Border (1) + PaddingLeft (2)
+		m.sidebar.SetViewportHeight(tableHeight - 3)    // PaddingTop (3)
+
 	}
 	m.table.SetWidth(tableWidth)
 	m.table.AdjustColumns(tableWidth, m.sidebar.IsVisible())
 
-	// Calculate table height
-	tableHeight := m.termSize.height - 3 // Margin for UI elements
-	if m.filter.IsFiltering() {
-		tableHeight -= 2 // Space for filter
-	}
-	m.table.SetHeight(tableHeight)
-	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
-
-	// Adjust sidebar viewport if visible
-	if m.sidebar.IsVisible() {
-		m.sidebar.SetSidebarViewportWidth(m.sidebar.Width - 10) // Account for border and padding
-		m.sidebar.SetSidebarViewportHeight(tableHeight - 3)     // Match table height, adjust for padding
-	}
 }
 
 // DebugLayout logs the current layout dimensions for debugging

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"mcli/tui/styles"
 	"mcli/types"
 	"mcli/utils"
 	"strings"
@@ -25,8 +26,7 @@ func NewSidebar() Sidebar {
 	utils.Logger.Info("NewSidebar called")
 	width, height := 20, 20               // initial default width,height
 	vp := viewport.New(width-2, height-4) // -2 for border and space to left, -4 for 2 space at top and bottom
-	vp.Style = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF"))
+	vp.Style = lipgloss.NewStyle()
 	sidebar := Sidebar{
 		visible:  false,
 		viewport: vp,
@@ -45,17 +45,17 @@ func (s *Sidebar) ToggleSidebarView() {
 
 func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render(event.Title)
+	title := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.TableHeader).Render(event.Title)
 
 	description, _ := glamour.Render(event.Description, "dark")
 	if event.Description == "" {
 		description, _ = glamour.Render("press R to fetch description", "dark")
 	}
 
-	url := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render(event.Url)
+	url := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarUrl).Render(event.Url)
 
 	parsedTime, _, _, _ := utils.ParseAndCompareDateTime(event.DateTime)
-	date := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render(parsedTime.String())
+	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(parsedTime.String())
 	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5")).Render("Description:\n------------")
 	location := event.Location
 
@@ -72,21 +72,21 @@ func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 	}
 	truncatedContent := strings.Join(lines, "\n")
 
-	// Calculate the actual content height (number of lines)
-	// contentHeight := strings.Count(renderedContent, "\n") + 1
-
-	//s.viewport.Height = height - 6
-	//s.viewport.Width = s.Width - 4
 	s.viewport.SetContent(truncatedContent)
+
 }
 
 func (s *Sidebar) Update(msg tea.Msg) (Sidebar, tea.Cmd) {
 	var cmd tea.Cmd
 	s.viewport, cmd = s.viewport.Update(msg)
+
+	utils.Logger.Debug("Sidebar / Update", "msg", msg)
 	return *s, cmd
 }
 
 func (s Sidebar) View() string {
+
+	utils.Logger.Debug("Inside Sidebar View", "visible", s.visible)
 	if !s.visible {
 		return ""
 	}
@@ -102,16 +102,22 @@ func (s Sidebar) View() string {
 		PaddingTop(3).
 		PaddingLeft(2)
 
-	return sidebarStyle.Render(s.viewport.View())
+		// s.viewport.Width = 30
+		// s.viewport.Height = 30
+
+	rendered := sidebarStyle.Render(s.viewport.View())
+	//utils.Logger.Debug("Sidebar rendered", "content", rendered)
+	return rendered
 }
 
-func (s Sidebar) GetHeight() int { return s.viewport.Height }
-func (s Sidebar) GetWidth() int  { return s.Width }
-
-func (s *Sidebar) SetSidebarViewportHeight(height int) {
+func (s Sidebar) GetHeight() int        { return s.Height }
+func (s *Sidebar) SetHeight(height int) { s.Height = height }
+func (s *Sidebar) SetViewportHeight(height int) {
 	s.viewport.Height = height
 }
 
-func (s *Sidebar) SetSidebarViewportWidth(width int) {
+func (s Sidebar) GetWidth() int       { return s.Width }
+func (s *Sidebar) SetWidth(width int) { s.Width = width }
+func (s *Sidebar) SetViewportWidth(width int) {
 	s.viewport.Width = width
 }
