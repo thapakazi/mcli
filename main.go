@@ -19,7 +19,6 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	opts := []tea.ProgramOption{
 		tea.WithInput(s),
 		tea.WithOutput(s),
-		tea.WithAltScreen(),
 	}
 	return m, opts
 }
@@ -74,7 +73,6 @@ func main() {
 			NewModel(),
 			tea.WithInput(os.Stdin),
 			tea.WithOutput(os.Stdout),
-			tea.WithAltScreen(),
 		)
 		if _, err := p.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error running CLI program: %v\n", err)

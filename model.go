@@ -59,7 +59,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		utils.Logger.Debug("update/tea.FetchSuccessMsg")
 		m.loading = false
 		m.Events = msg.Events
-		return m, tea.WindowSize()
+		m.AdjustViewports()
+		return m, nil
 
 	case tea.WindowSizeMsg:
 		utils.Logger.Debug("update/tea.WindowSizeMsg", "type", msg)
@@ -193,8 +194,7 @@ func (m *model) AdjustViewports() {
 	m.statusbar.Width = m.termSize.width - 2
 	tableWidth := m.termSize.width
 	if m.sidebar.IsVisible() {
-		//sidebarWidth := int(float64(m.termSize.width) * 0.3) // Sidebar takes 30%, adjustable
-		m.sidebar.Width = 100
+		m.sidebar.Width = int(float64(m.termSize.width) * 0.6) // Sidebar takes X%, adjustable
 		tableWidth = m.termSize.width - m.sidebar.Width
 
 		m.sidebar.SetViewportWidth(m.sidebar.Width - 3) // Border (1) + PaddingLeft (2)
