@@ -1,0 +1,43 @@
+#+TITLE: mcli
+#+DESCRIPTION: never miss any interesting meetups
+#+DATE: Monday, May 05 2025
+
+
+tldr;
+#+begin_src bash
+ssh  meetups.thapakazi.com
+#+end_src
+
+#+BEGIN_QUOTE
+Never miss any interesting tech meetups and your opportunity to connect and learn.
+#+END_QUOTE
+
+Its hard to navigate via UI in meetup.com and lu.ma. Meetups/Events are one of the easy way to connect, learn and explore interesting ideas/projects with awesome people.
+And I love cli, so i built to explore meetups on different platforms.
+
+#+CAPTION: Quick Sneak
+#+NAME:   fig:demo
+[[./assets/demo.gif]]
+ref: https://asciinema.org/a/ueHoxhvj3wJB1pSSSqiggGlVw
+
+** mcli
+
+  - runs as standalone binary
+  - runs as a ssh server with  `-wish`
+  - requires: mcli.d (api server to fetch and show data)
+
+** Todo:
+  - search by location
+  - set location
+  - bookmark items (b)
+  - copy to clipboard
+  - +open url in browser(o)+
+  - read/unread
+  - show events within next week starting today
+  - hide past events
+  - configuration file option if running locally
+  - configuration via ssh-user(public-key)
+
+***  FAQ
+Q: How does it works ??
+A: cli.d  exposes apis to scrape and present necessary meetup details in cli
