@@ -26,13 +26,7 @@ func parseDateTime(dateTimeStr string) (time.Time, error) {
 
 // getCurrentTimeUTC returns the current time in UTC
 func getCurrentTimeUTC() (time.Time, error) {
-	utcLoc, err := time.LoadLocation("UTC")
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to load UTC timezone: %v", err)
-	}
-	// Fixed time for consistency: 2025-05-14 05:34 UTC (12:34 AM CDT)
-	return time.Date(2025, time.May, 14, 5, 34, 0, 0, utcLoc), nil
-	// For production, use: return time.Now().UTC(), nil
+  return time.Now().UTC(), nil
 }
 
 // calculateDuration computes the duration and determines if the event is current/future
