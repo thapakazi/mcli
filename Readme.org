@@ -27,6 +27,8 @@ ref: https://asciinema.org/a/ueHoxhvj3wJB1pSSSqiggGlVw
   - requires: mcli.d (api server to fetch and show data)
 
 ** Todo:
+  - ui: no need to show old events
+  - ux: sort events by today onwards
   - search by location
   - set location
   - bookmark items (b)

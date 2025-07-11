@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"mcli/cmdprompt"
 	"mcli/tui"
 	"mcli/tui/styles"
 	"mcli/types"
 	"mcli/utils"
+	"net/url"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,6 +27,7 @@ type model struct {
 	table     tui.Table
 	sidebar   tui.Sidebar
 	statusbar tui.StatusBar
+	cmdPrompt *cmdprompt.CommandPrompt
 	filter    tui.Filter
 	termSize  termSize
 	loading   bool
@@ -36,6 +41,7 @@ func NewModel() model {
 		table:     tui.NewTable(types.Events{}),
 		sidebar:   tui.NewSidebar(),
 		filter:    tui.NewFilter(),
+		cmdPrompt: cmdprompt.New(":", handleCommand),
 		statusbar: tui.NewStatusBar("Press 'q' to quit, '/' to filter, 'y' for deatils", "", 80),
 	}
 }
@@ -43,6 +49,7 @@ func NewModel() model {
 // Init starts the application by fetching events
 func (m model) Init() tea.Cmd {
 	utils.Logger.Debug("Init Called")
+	m.cmdPrompt.Init()
 	return utils.FetchEventCmd
 }
 
@@ -110,6 +117,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.AdjustViewports()
 				return m, nil
 			}
+		}
+
+		//handle command prompt
+		consumed, updatedPrompt, _cmd := m.cmdPrompt.Update(msg, handleCommand)
+		m.cmdPrompt = updatedPrompt
+		if consumed {
+			// If CommandPrompt handled the message, return early
+			if m.cmdPrompt.GetOutput() == "Quitting..." {
+				return m, tea.Quit
+			}
+			return m, _cmd
 		}
 
 		switch msg.String() {
@@ -188,6 +206,10 @@ func (m model) View() string {
 		renderedView = lipgloss.JoinHorizontal(lipgloss.Left, renderedView, m.sidebar.View())
 	}
 
+	// Include CommandPrompt's view in the main app's view
+	cmdBarView := m.cmdPrompt.View()
+	renderedView = lipgloss.JoinVertical(lipgloss.Left, renderedView, cmdBarView)
+
 	// Add status bar
 	statusBarView := m.statusbar.View()
 	renderedView = lipgloss.JoinVertical(lipgloss.Left, renderedView, statusBarView)
@@ -256,4 +278,33 @@ func (m *model) sidebarMovement(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.sidebar, cmd = m.sidebar.Update(msg)
 	return m, cmd
+}
+
+func handleCommand(command string) (string, tea.Cmd) {
+
+	var availableOpts = []string{"refresh", "fetch", "quit", "help"}
+	_cmd := strings.Split(command, " ")
+	switch strings.ToLower(_cmd[0]) {
+	case "":
+		// no command entered
+		return "", nil
+	case "help":
+		return fmt.Sprintf("Check available opts: %s", strings.Join(availableOpts, ",")), nil
+	case "quit":
+		return "Quitting...", nil
+	case "refresh":
+		return "Refreshing list", nil
+	case "fetch":
+		args := strings.Join(_cmd[1:], " ")
+
+		return fmt.Sprintf("Fetching events for %s", args), FetchEventByLocation(url.PathEscape(args))
+	default:
+		return fmt.Sprintf("Unknown command: %s", command), nil
+	}
+}
+
+func FetchEventByLocation(loc string) tea.Cmd {
+	return func() tea.Msg {
+		return utils.FetchEventByLocationCmd(loc)
+	}
 }

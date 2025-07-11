@@ -59,6 +59,36 @@ func fetchEvents() ([]types.Event, error) {
 	return events, nil
 }
 
+func fetchEventByLocation(location string) error {
+	apiBaseUrl, err := LoadEnv()
+	if err != nil {
+		return err
+	}
+	apiUrl := apiBaseUrl + "/fetch" + "?location=" + location
+	Logger.Info("Fetching events for", location, location)
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(apiUrl)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch events for %s, Error: %w", location, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return fmt.Errorf("failed to read events response body: %w", err)
+	}
+
+	var events []types.Event
+	if err := json.Unmarshal(body, &events); err != nil {
+		return fmt.Errorf("Failed to parse response, %w", err)
+	}
+	return nil
+
+}
+
 type FetchErrorMsg struct {
 	Err error
 }
@@ -77,13 +107,37 @@ func FetchEventCmd() tea.Msg {
 	return FetchSuccessMsg{Events: sortedEvents}
 }
 
+func FetchEventByLocationCmd(location string) tea.Msg {
+	err := fetchEventByLocation(location)
+	if err != nil {
+		return FetchErrorMsg{Err: err}
+	}
+	return nil
+}
+
+// sortByDate sorts a slice of Events by DateTime in descending order
+
 // sortByDate sorts a slice of Events by DateTime in descending order
 func sortByDate(events types.Events) types.Events {
-	// Use sort.Slice to sort events in place
-	sort.Slice(events, func(i, j int) bool {
-		// Parse DateTime for both events
-		timeI, errI := parseDateTime(events[i].DateTime)
-		timeJ, errJ := parseDateTime(events[j].DateTime)
+	// Get current date at midnight for comparison
+	currentDate := time.Now().Truncate(24 * time.Hour)
+
+	// Filter out events older than today
+	filteredEvents := types.Events{}
+	for _, event := range events {
+		eventTime, err := parseDateTime(event.DateTime)
+		if err != nil {
+			continue // Skip invalid dates
+		}
+		if !eventTime.Before(currentDate) {
+			filteredEvents = append(filteredEvents, event)
+		}
+	}
+
+	// Sort filtered events in ascending order
+	sort.Slice(filteredEvents, func(i, j int) bool {
+		timeI, errI := parseDateTime(filteredEvents[i].DateTime)
+		timeJ, errJ := parseDateTime(filteredEvents[j].DateTime)
 
 		// Handle parsing errors: invalid dates go to the end
 		if errI != nil && errJ != nil {
@@ -96,9 +150,9 @@ func sortByDate(events types.Events) types.Events {
 			return true
 		}
 
-		// Sort by date in descending order
-		return timeI.After(timeJ)
+		// Sort by date in ascending order
+		return timeI.Before(timeJ)
 	})
 
-	return events
+	return filteredEvents
 }

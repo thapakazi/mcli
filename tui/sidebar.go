@@ -55,7 +55,7 @@ func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 	url := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarUrl).Render(event.Url)
 
 	parsedTime, _, _, _ := utils.ParseAndCompareDateTime(event.DateTime)
-	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(parsedTime.String())
+	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(utils.UTC2Local(parsedTime).String())
 	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5")).Render("Description:\n------------")
 	location := event.Location
 

@@ -26,7 +26,7 @@ func parseDateTime(dateTimeStr string) (time.Time, error) {
 
 // getCurrentTimeUTC returns the current time in UTC
 func getCurrentTimeUTC() (time.Time, error) {
-  return time.Now().UTC(), nil
+	return time.Now().UTC(), nil
 }
 
 // calculateDuration computes the duration and determines if the event is current/future
@@ -63,6 +63,7 @@ func formatDuration(duration time.Duration, isFutureOrCurrent bool) string {
 	return result
 }
 
+// TODO: move this to api, refactor it, this looks bulky
 // ParseAndCompareDateTime parses a date-time string and compares it to now
 func ParseAndCompareDateTime(dateTimeStr string) (time.Time, bool, string, error) {
 	// Parse the date-time string
@@ -84,4 +85,16 @@ func ParseAndCompareDateTime(dateTimeStr string) (time.Time, bool, string, error
 	formatted := formatDuration(duration, isFutureOrCurrent)
 
 	return parsedTime, isFutureOrCurrent, formatted, nil
+}
+
+// grok generated
+func UTC2Local(utcTime time.Time) time.Time {
+	// Get the local time zone
+	localZone, err := time.LoadLocation("Local")
+	if err != nil {
+		// Fallback to system local time if LoadLocation fails
+		return utcTime.Local()
+	}
+	// Convert UTC to local time
+	return utcTime.In(localZone)
 }
