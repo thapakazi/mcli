@@ -56,7 +56,7 @@ func FilterEvents(events []types.Event, query string) []types.Event {
 	var filtered []types.Event
 	for _, e := range events {
 		if strings.Contains(strings.ToLower(e.Title), q) ||
-			strings.Contains(strings.ToLower(e.Location), q) ||
+			strings.Contains(strings.ToLower(e.Location.VenueAddress), q) ||
 			strings.Contains(strings.ToLower(e.Description), q) {
 			filtered = append(filtered, e)
 		}

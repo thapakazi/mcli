@@ -56,11 +56,11 @@ func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 
 	parsedTime, _, _, _ := utils.ParseAndCompareDateTime(event.DateTime)
 	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(utils.UTC2Local(parsedTime).String())
-	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("5")).Render("Description:\n------------")
-	location := event.Location
+	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render("Description:\n------------")
+	location := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render(fmt.Sprintf("%s, %s", event.Location.VenueName, event.Location.VenueAddress))
 
 	sidebarText := fmt.Sprintf(
-		"%s\n\n🔗: %s\n\n📍: %s\n\n📅:%s\n\n%s\n%s",
+		"%s\n\n🔗 %s\n\n📍 %s\n\n📅 %s\n\n%s\n%s",
 		title, url, location, date, styledDescription, description,
 	)
 	// Split into lines

@@ -53,7 +53,7 @@ func CreateTableRows(events []types.Event) []table.Row {
 		rows = append(rows, table.Row{
 			sourceIcon,
 			title,
-			event.Location,
+			event.Location.VenueAddress,
 			dateTime,
 		})
 
