@@ -27,13 +27,13 @@ ref: https://asciinema.org/a/ueHoxhvj3wJB1pSSSqiggGlVw
   - requires: mcli.d (api server to fetch and show data)
 
 ** Todo:
-  - ui: no need to show old events
-  - ux: sort events by today onwards
-  - search by location
+  - [X] ui: no need to show old events
+  - [X] ux: sort events by today onwards
+  - [X] search by location, with ~:fetch~ function
   - set location
   - bookmark items (b)
   - copy to clipboard
-  - +open url in browser(o)+
+  - [X] +open url in browser(o)+
   - read/unread
   - show events within next week starting today
   - hide past events
