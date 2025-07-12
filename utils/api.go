@@ -81,12 +81,22 @@ func fetchEventByLocation(location string) error {
 		return fmt.Errorf("failed to read events response body: %w", err)
 	}
 
-	var events []types.Event
-	if err := json.Unmarshal(body, &events); err != nil {
-		return fmt.Errorf("Failed to parse response, %w", err)
+	// ugly grok shit
+	// Unmarshal the response into a map to avoid struct
+	var response map[string]string
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	return nil
 
+	// Log the message field
+	if message, ok := response["message"]; ok {
+		Logger.Info("Fetch response:", message)
+	} else {
+		return fmt.Errorf("response does not contain message field")
+	}
+
+	// TODO: reply user to refresh ui in a while
+	return nil
 }
 
 type FetchErrorMsg struct {

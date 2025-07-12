@@ -33,7 +33,7 @@ func getTableColumns(width int, isSidebarVisible bool) []table.Column {
 		{Title: "🚀", Width: iconWidth},
 		{Title: "Event", Width: eventWidth},
 		{Title: "Location", Width: locationWidth},
-		{Title: "Date", Width: dateWidth},
+		{Title: "In", Width: dateWidth},
 	}
 }
 
