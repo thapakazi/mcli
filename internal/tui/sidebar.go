@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"mcli/tui/styles"
-	"mcli/types"
-	"mcli/utils"
+	"mcli/internal/api"
+	"mcli/internal/tui/styles"
+	"mcli/internal/types"
+	"mcli/internal/utils"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -54,8 +55,8 @@ func (s *Sidebar) UpdateSidebarContent(event types.Event, height int) {
 
 	url := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarUrl).Render(event.Url)
 
-	parsedTime, _, _, _ := utils.ParseAndCompareDateTime(event.DateTime)
-	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(utils.UTC2Local(parsedTime).String())
+	parsedTime, _, _, _ := api.ParseAndCompareDateTime(event.DateTime)
+	date := lipgloss.NewStyle().Bold(true).Foreground(styles.DefaultTheme.SidebarDateTime).Render(api.UTC2Local(parsedTime).String())
 	styledDescription := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4")).Render("Description:\n------------")
 	location := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render(fmt.Sprintf("%s, %s", event.Location.VenueName, event.Location.VenueAddress))
 

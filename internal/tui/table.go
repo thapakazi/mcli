@@ -1,9 +1,10 @@
 package tui
 
 import (
-	"mcli/tui/styles"
-	"mcli/types"
-	"mcli/utils"
+	"mcli/internal/api"
+	"mcli/internal/tui/styles"
+	"mcli/internal/types"
+	"mcli/internal/utils"
 
 	"github.com/charmbracelet/bubbles/table"
 )
@@ -48,7 +49,7 @@ func CreateTableRows(events []types.Event) []table.Row {
 			sourceIcon = "☘️"
 		}
 		title := event.Title
-		_, _, dateTime, _ := utils.ParseAndCompareDateTime(event.DateTime)
+		_, _, dateTime, _ := api.ParseAndCompareDateTime(event.DateTime)
 		//if isFutureOrCurrent {
 		rows = append(rows, table.Row{
 			sourceIcon,

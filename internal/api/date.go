@@ -1,4 +1,4 @@
-package utils
+package api
 
 import (
 	"fmt"
@@ -63,7 +63,6 @@ func formatDuration(duration time.Duration, isFutureOrCurrent bool) string {
 	return result
 }
 
-// TODO: move this to api, refactor it, this looks bulky
 // ParseAndCompareDateTime parses a date-time string and compares it to now
 func ParseAndCompareDateTime(dateTimeStr string) (time.Time, bool, string, error) {
 	// Parse the date-time string
@@ -87,7 +86,7 @@ func ParseAndCompareDateTime(dateTimeStr string) (time.Time, bool, string, error
 	return parsedTime, isFutureOrCurrent, formatted, nil
 }
 
-// grok generated
+// UTC2Local converts a UTC time to local time
 func UTC2Local(utcTime time.Time) time.Time {
 	// Get the local time zone
 	localZone, err := time.LoadLocation("Local")

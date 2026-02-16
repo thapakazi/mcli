@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"mcli/types"
+	"mcli/internal/types"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -50,7 +50,7 @@ func (f *Filter) Update(msg tea.Msg) (Filter, tea.Cmd) {
 }
 
 // FilterEvents returns only those events whose title, location or description
-// contains the query (case‑insensitive).
+// contains the query (case-insensitive).
 func FilterEvents(events []types.Event, query string) []types.Event {
 	q := strings.ToLower(query)
 	var filtered []types.Event

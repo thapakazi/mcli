@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"mcli/cmdprompt"
-	"mcli/tui"
-	"mcli/tui/styles"
-	"mcli/types"
-	"mcli/utils"
+	"mcli/internal/api"
+	"mcli/internal/cmdprompt"
+	"mcli/internal/tui"
+	"mcli/internal/tui/styles"
+	"mcli/internal/types"
+	"mcli/internal/utils"
 	"net/url"
 	"strings"
 
@@ -50,19 +51,19 @@ func NewModel() model {
 func (m model) Init() tea.Cmd {
 	utils.Logger.Debug("Init Called")
 	m.cmdPrompt.Init()
-	return utils.FetchEventCmd
+	return api.FetchEventCmd
 }
 
 // Update handles incoming messages and updates the model
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case utils.FetchErrorMsg:
+	case api.FetchErrorMsg:
 		utils.Logger.Debug("update/tea.FetchErrorMsg")
 		m.loading = false
 		m.err = msg.Err
 		return m, nil
 
-	case utils.FetchSuccessMsg:
+	case api.FetchSuccessMsg:
 		utils.Logger.Debug("update/tea.FetchSuccessMsg")
 		m.loading = false
 		m.Events = msg.Events
@@ -147,7 +148,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "r":
-			return m, utils.FetchEventCmd
+			return m, api.FetchEventCmd
 
 		case "o":
 			// open link in browser
@@ -305,6 +306,6 @@ func handleCommand(command string) (string, tea.Cmd) {
 
 func FetchEventByLocation(loc string) tea.Cmd {
 	return func() tea.Msg {
-		return utils.FetchEventByLocationCmd(loc)
+		return api.FetchEventByLocationCmd(loc)
 	}
 }

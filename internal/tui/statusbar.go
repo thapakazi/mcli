@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"mcli/tui/styles"
+	"mcli/internal/tui/styles"
 
 	"github.com/charmbracelet/lipgloss"
 )

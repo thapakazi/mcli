@@ -1,4 +1,4 @@
-package utils
+package api
 
 import (
 	"encoding/json"
@@ -9,7 +9,8 @@ import (
 	"sort"
 	"time"
 
-	"mcli/types"
+	"mcli/internal/types"
+	"mcli/internal/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
@@ -35,7 +36,7 @@ func fetchEvents() ([]types.Event, error) {
 		return nil, err
 	}
 	apiUrl := apiBaseUrl + "/events"
-	Logger.Info("Fetching events from", apiUrl, apiUrl)
+	utils.Logger.Info("Fetching events from", apiUrl, apiUrl)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -65,7 +66,7 @@ func fetchEventByLocation(location string) error {
 		return err
 	}
 	apiUrl := apiBaseUrl + "/fetch" + "?location=" + location
-	Logger.Info("Fetching events for", location, location)
+	utils.Logger.Info("Fetching events for", location, location)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -90,7 +91,7 @@ func fetchEventByLocation(location string) error {
 
 	// Log the message field
 	if message, ok := response["message"]; ok {
-		Logger.Info("Fetch response:", message)
+		utils.Logger.Info("Fetch response:", message)
 	} else {
 		return fmt.Errorf("response does not contain message field")
 	}
@@ -125,9 +126,7 @@ func FetchEventByLocationCmd(location string) tea.Msg {
 	return nil
 }
 
-// sortByDate sorts a slice of Events by DateTime in descending order
-
-// sortByDate sorts a slice of Events by DateTime in descending order
+// sortByDate sorts a slice of Events by DateTime in ascending order
 func sortByDate(events types.Events) types.Events {
 	// Get current date at midnight for comparison
 	currentDate := time.Now().Truncate(24 * time.Hour)

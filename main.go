@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"mcli/utils"
+	"mcli/internal/utils"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
