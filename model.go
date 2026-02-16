@@ -24,6 +24,7 @@ type termSize struct {
 
 // model represents the application state
 type model struct {
+	userID    string // SSH key fingerprint or "local" for CLI mode
 	Events    types.Events
 	table     tui.Table
 	sidebar   tui.Sidebar
@@ -35,9 +36,10 @@ type model struct {
 	err       error
 }
 
-// NewModel initializes the application model
-func NewModel() model {
+// NewModel initializes the application model with a user identity
+func NewModel(userID string) model {
 	return model{
+		userID:    userID,
 		loading:   true,
 		table:     tui.NewTable(types.Events{}),
 		sidebar:   tui.NewSidebar(),
@@ -49,7 +51,7 @@ func NewModel() model {
 
 // Init starts the application by fetching events
 func (m model) Init() tea.Cmd {
-	utils.Logger.Debug("Init Called")
+	utils.Logger.Debug("Init Called", "userID", m.userID)
 	m.cmdPrompt.Init()
 	return api.FetchEventCmd
 }

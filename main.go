@@ -11,11 +11,18 @@ import (
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	"github.com/charmbracelet/wish/bubbletea"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 // teaHandler creates a Bubble Tea program for the Wish server.
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-	m := NewModel()
+	userID := "guest"
+	if pubKey := s.PublicKey(); pubKey != nil {
+		userID = gossh.FingerprintSHA256(pubKey)
+	}
+	utils.Logger.Info("SSH session started", "user", s.User(), "userID", userID)
+
+	m := NewModel(userID)
 	opts := []tea.ProgramOption{
 		tea.WithInput(s),
 		tea.WithOutput(s),
@@ -28,6 +35,10 @@ func runWishServer(host, port string) error {
 	s, err := wish.NewServer(
 		wish.WithAddress(fmt.Sprintf("%s:%s", host, port)),
 		wish.WithHostKeyPath(".ssh/events_app_ed25519"),
+		wish.WithPublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
+			// Accept all public keys — identity is used for profiles, not access control
+			return true
+		}),
 		wish.WithMiddleware(
 			bubbletea.Middleware(teaHandler),
 		),
@@ -70,7 +81,7 @@ func main() {
 	} else {
 		// Run as CLI
 		p := tea.NewProgram(
-			NewModel(),
+			NewModel("local"),
 			tea.WithInput(os.Stdin),
 			tea.WithOutput(os.Stdout),
 		)
