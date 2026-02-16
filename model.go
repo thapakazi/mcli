@@ -56,7 +56,7 @@ func NewModel(userID string, store *profile.Store) model {
 		table:     tui.NewTable(types.Events{}),
 		sidebar:   tui.NewSidebar(),
 		filter:    tui.NewFilter(),
-		cmdPrompt: cmdprompt.New(":", handleCommand),
+		cmdPrompt: cmdprompt.New(":", nil),
 		statusbar: tui.NewStatusBar("Press 'q' to quit, '/' to filter, 'y' for deatils", "", 80),
 	}
 }
@@ -135,7 +135,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		//handle command prompt
-		consumed, updatedPrompt, _cmd := m.cmdPrompt.Update(msg, handleCommand)
+		consumed, updatedPrompt, _cmd := m.cmdPrompt.Update(msg, m.handleCommand)
 		m.cmdPrompt = updatedPrompt
 		if consumed {
 			// If CommandPrompt handled the message, return early
@@ -295,9 +295,9 @@ func (m *model) sidebarMovement(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func handleCommand(command string) (string, tea.Cmd) {
+func (m *model) handleCommand(command string) (string, tea.Cmd) {
 
-	var availableOpts = []string{"refresh", "fetch", "quit", "help"}
+	var availableOpts = []string{"refresh", "fetch", "set-location", "quit", "help"}
 	_cmd := strings.Split(command, " ")
 	switch strings.ToLower(_cmd[0]) {
 	case "":
@@ -309,9 +309,29 @@ func handleCommand(command string) (string, tea.Cmd) {
 		return "Quitting...", nil
 	case "refresh":
 		return "Refreshing list", nil
+	case "set-location":
+		args := strings.TrimSpace(strings.Join(_cmd[1:], " "))
+		if args == "" {
+			if m.profile.Location != "" {
+				return fmt.Sprintf("Current location: %s", m.profile.Location), nil
+			}
+			return "Usage: set-location <city>", nil
+		}
+		m.profile.Location = args
+		if err := m.store.SaveLocation(m.userID, args); err != nil {
+			utils.Logger.Error("failed to save location", "err", err)
+			return "Failed to save location", nil
+		}
+		return fmt.Sprintf("Location set to: %s", args), nil
 	case "fetch":
-		args := strings.Join(_cmd[1:], " ")
-
+		args := strings.TrimSpace(strings.Join(_cmd[1:], " "))
+		// Use saved location as default when no args given
+		if args == "" {
+			args = m.profile.Location
+		}
+		if args == "" {
+			return "No location set. Use :set-location <city> first", nil
+		}
 		return fmt.Sprintf("Fetching events for %s", args), FetchEventByLocation(url.PathEscape(args))
 	default:
 		return fmt.Sprintf("Unknown command: %s", command), nil
