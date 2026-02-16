@@ -33,10 +33,11 @@ type model struct {
 	sidebar   tui.Sidebar
 	statusbar tui.StatusBar
 	cmdPrompt *cmdprompt.CommandPrompt
-	filter    tui.Filter
-	termSize  termSize
-	loading   bool
-	err       error
+	filter        tui.Filter
+	termSize      termSize
+	bookmarksOnly bool
+	loading       bool
+	err           error
 }
 
 // NewModel initializes the application model with a user identity
@@ -100,13 +101,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.filter.ToggleFilterView()
 				m.filter.Text = ""
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents("")))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(""), m.profile.IsBookmarked))
 				m.statusbar.FilteredText = "" // Clear filter text
 				m.AdjustViewports()
 			case "enter":
 				m.filter.ToggleFilterView()
 				m.filter.Text = m.filter.Input.Value()
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
 				filterText := m.filter.Text
 				if filterText != "" {
 					filterText = "/" + filterText
@@ -117,7 +118,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.filter, cmd = m.filter.Update(msg)
 				m.filter.Text = m.filter.Input.Value()
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
 				utils.Logger.Info("filtering list", "text", m.filter.Text)
 				return m, cmd
 			}
@@ -163,6 +164,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "r":
 			return m, api.FetchEventCmd
+
+		case "b":
+			// toggle bookmark on current event
+			events := m.DisplayedEvents(m.filter.Text)
+			if len(events) > 0 {
+				event := events[m.table.Cursor()]
+				added := m.profile.ToggleBookmark(event.ID)
+				if added {
+					m.store.AddBookmark(m.userID, event.ID)
+				} else {
+					m.store.RemoveBookmark(m.userID, event.ID)
+				}
+				m.AdjustViewports()
+			}
+			return m, nil
 
 		case "o":
 			// open link in browser
@@ -232,12 +248,25 @@ func (m model) View() string {
 	return styles.BaseStyle.Render(renderedView)
 }
 
-// DisplayedEvents returns the current list of events based on the filter
+// DisplayedEvents returns the current list of events based on active filters
 func (m model) DisplayedEvents(filter string) []types.Event {
-	if filter == "" {
-		return m.Events
+	events := m.Events
+
+	// Apply bookmarks-only filter
+	if m.bookmarksOnly {
+		var bookmarked []types.Event
+		for _, e := range events {
+			if m.profile.IsBookmarked(e.ID) {
+				bookmarked = append(bookmarked, e)
+			}
+		}
+		events = bookmarked
 	}
-	return tui.FilterEvents(m.Events, filter)
+
+	if filter == "" {
+		return events
+	}
+	return tui.FilterEvents(events, filter)
 }
 
 func (m *model) AdjustViewports() {
@@ -252,7 +281,7 @@ func (m *model) AdjustViewports() {
 	// Calculate table height
 	tableHeight := m.termSize.height - statusbarHeight - filterHeight - 2 // 2 for border(head/tail)
 	m.table.SetHeight(tableHeight)
-	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text)))
+	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
 
 	// Calculate table width
 	m.statusbar.Width = m.termSize.width - 2
@@ -297,7 +326,7 @@ func (m *model) sidebarMovement(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) handleCommand(command string) (string, tea.Cmd) {
 
-	var availableOpts = []string{"refresh", "fetch", "set-location", "quit", "help"}
+	var availableOpts = []string{"refresh", "fetch", "set-location", "bookmarks", "quit", "help"}
 	_cmd := strings.Split(command, " ")
 	switch strings.ToLower(_cmd[0]) {
 	case "":
@@ -323,6 +352,13 @@ func (m *model) handleCommand(command string) (string, tea.Cmd) {
 			return "Failed to save location", nil
 		}
 		return fmt.Sprintf("Location set to: %s", args), nil
+	case "bookmarks":
+		m.bookmarksOnly = !m.bookmarksOnly
+		m.AdjustViewports()
+		if m.bookmarksOnly {
+			return "Showing bookmarked events only", nil
+		}
+		return "Showing all events", nil
 	case "fetch":
 		args := strings.TrimSpace(strings.Join(_cmd[1:], " "))
 		// Use saved location as default when no args given
