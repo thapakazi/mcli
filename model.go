@@ -36,6 +36,7 @@ type model struct {
 	filter        tui.Filter
 	termSize      termSize
 	bookmarksOnly bool
+	unreadOnly    bool
 	loading       bool
 	err           error
 }
@@ -101,13 +102,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.filter.ToggleFilterView()
 				m.filter.Text = ""
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(""), m.profile.IsBookmarked))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(""), m.profile.IsBookmarked, m.profile.IsRead))
 				m.statusbar.FilteredText = "" // Clear filter text
 				m.AdjustViewports()
 			case "enter":
 				m.filter.ToggleFilterView()
 				m.filter.Text = m.filter.Input.Value()
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked, m.profile.IsRead))
 				filterText := m.filter.Text
 				if filterText != "" {
 					filterText = "/" + filterText
@@ -118,7 +119,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var cmd tea.Cmd
 				m.filter, cmd = m.filter.Update(msg)
 				m.filter.Text = m.filter.Input.Value()
-				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
+				m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked, m.profile.IsRead))
 				utils.Logger.Info("filtering list", "text", m.filter.Text)
 				return m, cmd
 			}
@@ -151,6 +152,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "y":
 			m.sidebar.ToggleSidebarView()
+			// mark event as read when opening sidebar
+			if m.sidebar.IsVisible() {
+				events := m.DisplayedEvents(m.filter.Text)
+				if len(events) > 0 {
+					event := events[m.table.Cursor()]
+					m.profile.MarkRead(event.ID)
+					m.store.AddReadEvent(m.userID, event.ID)
+				}
+			}
 			// always render viewport from top
 			m.sidebarMovement(msg)
 		case "/":
@@ -181,9 +191,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "o":
-			// open link in browser
+			// open link in browser and mark as read
 			events := m.DisplayedEvents(m.filter.Text)
-			utils.OpenURL(events[m.table.Cursor()].Url)
+			if len(events) > 0 {
+				event := events[m.table.Cursor()]
+				utils.OpenURL(event.Url)
+				m.profile.MarkRead(event.ID)
+				m.store.AddReadEvent(m.userID, event.ID)
+				m.AdjustViewports()
+			}
 			return m, nil
 
 		case "h":
@@ -263,6 +279,17 @@ func (m model) DisplayedEvents(filter string) []types.Event {
 		events = bookmarked
 	}
 
+	// Apply unread-only filter
+	if m.unreadOnly {
+		var unread []types.Event
+		for _, e := range events {
+			if !m.profile.IsRead(e.ID) {
+				unread = append(unread, e)
+			}
+		}
+		events = unread
+	}
+
 	if filter == "" {
 		return events
 	}
@@ -281,7 +308,7 @@ func (m *model) AdjustViewports() {
 	// Calculate table height
 	tableHeight := m.termSize.height - statusbarHeight - filterHeight - 2 // 2 for border(head/tail)
 	m.table.SetHeight(tableHeight)
-	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked))
+	m.table.SetRows(tui.CreateTableRows(m.DisplayedEvents(m.filter.Text), m.profile.IsBookmarked, m.profile.IsRead))
 
 	// Calculate table width
 	m.statusbar.Width = m.termSize.width - 2
@@ -326,7 +353,7 @@ func (m *model) sidebarMovement(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) handleCommand(command string) (string, tea.Cmd) {
 
-	var availableOpts = []string{"refresh", "fetch", "set-location", "bookmarks", "quit", "help"}
+	var availableOpts = []string{"refresh", "fetch", "set-location", "bookmarks", "unread", "quit", "help"}
 	_cmd := strings.Split(command, " ")
 	switch strings.ToLower(_cmd[0]) {
 	case "":
@@ -357,6 +384,13 @@ func (m *model) handleCommand(command string) (string, tea.Cmd) {
 		m.AdjustViewports()
 		if m.bookmarksOnly {
 			return "Showing bookmarked events only", nil
+		}
+		return "Showing all events", nil
+	case "unread":
+		m.unreadOnly = !m.unreadOnly
+		m.AdjustViewports()
+		if m.unreadOnly {
+			return "Showing unread events only", nil
 		}
 		return "Showing all events", nil
 	case "fetch":

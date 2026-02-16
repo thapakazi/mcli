@@ -43,7 +43,7 @@ func getTableColumns(width int, isSidebarVisible bool) []table.Column {
 	}
 }
 
-func CreateTableRows(events []types.Event, isBookmarked EventMarkerFn) []table.Row {
+func CreateTableRows(events []types.Event, isBookmarked, isRead EventMarkerFn) []table.Row {
 	var rows []table.Row
 	for _, event := range events {
 		sourceIcon := "?"
@@ -53,8 +53,15 @@ func CreateTableRows(events []types.Event, isBookmarked EventMarkerFn) []table.R
 		default:
 			sourceIcon = "☘️"
 		}
+
 		title := event.Title
 		_, _, dateTime, _ := api.ParseAndCompareDateTime(event.DateTime)
+		location := event.Location.VenueAddress
+
+		// Show · instead of source icon for read events
+		if isRead != nil && isRead(event.ID) {
+			sourceIcon = "·"
+		}
 
 		mark := " "
 		if isBookmarked != nil && isBookmarked(event.ID) {
@@ -65,7 +72,7 @@ func CreateTableRows(events []types.Event, isBookmarked EventMarkerFn) []table.R
 			sourceIcon,
 			title,
 			mark,
-			event.Location.VenueAddress,
+			location,
 			dateTime,
 		})
 	}
@@ -78,7 +85,7 @@ func NewTable(events []types.Event) Table {
 	showTitleOnly := false
 	t := table.New(
 		table.WithColumns(getTableColumns(width, showTitleOnly)),
-		table.WithRows(CreateTableRows(events, nil)),
+		table.WithRows(CreateTableRows(events, nil, nil)),
 		table.WithFocused(true),
 	)
 	t.SetStyles(styles.GetTableStyles())
