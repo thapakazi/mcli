@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mcli/internal/api"
 	"mcli/internal/cmdprompt"
+	"mcli/internal/profile"
 	"mcli/internal/tui"
 	"mcli/internal/tui/styles"
 	"mcli/internal/types"
@@ -25,6 +26,7 @@ type termSize struct {
 // model represents the application state
 type model struct {
 	userID    string // SSH key fingerprint or "local" for CLI mode
+	profile   *profile.UserProfile
 	Events    types.Events
 	table     tui.Table
 	sidebar   tui.Sidebar
@@ -38,8 +40,15 @@ type model struct {
 
 // NewModel initializes the application model with a user identity
 func NewModel(userID string) model {
+	p, err := profile.Load(userID)
+	if err != nil {
+		utils.Logger.Error("failed to load profile", "userID", userID, "err", err)
+		p = profile.New(userID)
+	}
+
 	return model{
 		userID:    userID,
+		profile:   p,
 		loading:   true,
 		table:     tui.NewTable(types.Events{}),
 		sidebar:   tui.NewSidebar(),
