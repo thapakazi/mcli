@@ -27,6 +27,7 @@ type termSize struct {
 type model struct {
 	userID    string // SSH key fingerprint or "local" for CLI mode
 	profile   *profile.UserProfile
+	store     *profile.Store
 	Events    types.Events
 	table     tui.Table
 	sidebar   tui.Sidebar
@@ -39,16 +40,18 @@ type model struct {
 }
 
 // NewModel initializes the application model with a user identity
-func NewModel(userID string) model {
-	p, err := profile.Load(userID)
+func NewModel(userID string, store *profile.Store) model {
+	p, err := store.Load(userID)
 	if err != nil {
 		utils.Logger.Error("failed to load profile", "userID", userID, "err", err)
 		p = profile.New(userID)
 	}
+	utils.Logger.Info("profile loaded", "userID", userID, "location", p.Location)
 
 	return model{
 		userID:    userID,
 		profile:   p,
+		store:     store,
 		loading:   true,
 		table:     tui.NewTable(types.Events{}),
 		sidebar:   tui.NewSidebar(),

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"mcli/internal/profile"
 	"mcli/internal/utils"
 	"os"
 
@@ -14,6 +15,9 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
+// Global store shared across SSH sessions
+var store *profile.Store
+
 // teaHandler creates a Bubble Tea program for the Wish server.
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	userID := "guest"
@@ -22,7 +26,7 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	}
 	utils.Logger.Info("SSH session started", "user", s.User(), "userID", userID)
 
-	m := NewModel(userID)
+	m := NewModel(userID, store)
 	opts := []tea.ProgramOption{
 		tea.WithInput(s),
 		tea.WithOutput(s),
@@ -68,10 +72,13 @@ func main() {
 	// Log a startup message
 	utils.Logger.Info("Program started")
 
-	// // Validate API connectivity before starting
-	// if _, err := api.LoadEnv(); err != nil {
-	// 	log.Fatalf("Error loading environment: %v", err)
-	// }
+	// Open the profile store (SQLite)
+	var err error
+	store, err = profile.OpenStore()
+	if err != nil {
+		log.Fatalf("Failed to open profile store: %v", err)
+	}
+	defer store.Close()
 
 	if *wishMode {
 		// Run as Wish SSH server
@@ -81,7 +88,7 @@ func main() {
 	} else {
 		// Run as CLI
 		p := tea.NewProgram(
-			NewModel("local"),
+			NewModel("local", store),
 			tea.WithInput(os.Stdin),
 			tea.WithOutput(os.Stdout),
 		)
